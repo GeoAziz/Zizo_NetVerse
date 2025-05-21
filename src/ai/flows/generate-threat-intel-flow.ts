@@ -13,7 +13,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ThreatIntelEntrySchema = z.object({
-  id: z.string().uuid().describe('A unique UUID for the threat entry.'),
+  id: z.string().describe('A unique UUID for the threat entry.'),
   name: z.string().describe('The name or title of the threat (e.g., "KryllWorm Variant X", "Operation PhantomPhish"). Should sound technical and plausible for cybersecurity.'),
   severity: z.enum(['Critical', 'High', 'Medium', 'Low', 'Informational']).describe('The severity level of the threat.'),
   type: z.enum(['Malware', 'Phishing', 'DDoS', 'SQLi', 'RCE', 'Zero-day']).describe('The type of threat.'),
