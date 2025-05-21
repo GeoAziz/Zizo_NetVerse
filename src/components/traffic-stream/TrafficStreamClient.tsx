@@ -5,10 +5,12 @@ import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, SkipForward, Search, Download, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type TrafficLog = {
   id: string;
@@ -35,7 +37,7 @@ const generateMockData = (count: number): TrafficLog[] => {
     FTP: [20, 21],
   };
   const summaries = [
-    "GET /api/users HTTP/1.1", "POST /auth/login HTTP/1.1", "WebSocket Handshake Request", "TCP SYN_ACK Segment", 
+    "GET /api/users HTTP/1.1", "POST /auth/login HTTP/1.1", "WebSocket Handshake Request", "TCP SYN_ACK Segment",
     "PUT /data/update?id=123 HTTP/1.1", "DELETE /resource/id HTTP/1.1", "TLSv1.3 ClientHello", "WebSocket Binary Frame",
     "DNS Standard query A example.com", "FTP PORT command", "SSH-2.0-OpenSSH_8.2p1", "NTP Version 4, client"
   ];
@@ -61,7 +63,7 @@ const generateMockData = (count: number): TrafficLog[] => {
     const protocol = protocols[i % protocols.length];
     const destPortOptions = commonDestPorts[protocol] || [Math.floor(Math.random() * 64511) + 1024];
     const destPort = destPortOptions[Math.floor(Math.random() * destPortOptions.length)];
-    
+
     return {
       id: `pkt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${i}`,
       timestamp: now.toISOString(),
@@ -104,8 +106,8 @@ export default function TrafficStreamClient() {
 
   const filteredLogs = useMemo(() => {
     return allLogs.filter(log =>
-      (log.summary.toLowerCase().includes(searchTerm.toLowerCase()) || 
-       log.sourceIp.includes(searchTerm) || 
+      (log.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       log.sourceIp.includes(searchTerm) ||
        log.destIp.includes(searchTerm) ||
        log.protocol.toLowerCase().includes(searchTerm.toLowerCase())) &&
       (protocolFilter === 'all' || log.protocol === protocolFilter) &&
@@ -118,7 +120,7 @@ export default function TrafficStreamClient() {
       case 'HTTPS': return 'default'; // More prominent
       case 'HTTP': return 'secondary';
       case 'TCP': return 'outline';
-      case 'WebSocket': return 'default'; 
+      case 'WebSocket': return 'default';
       case 'DNS': return 'secondary';
       case 'FTP': return 'outline';
       default: return 'default';
@@ -240,14 +242,14 @@ export default function TrafficStreamClient() {
               </TableHeader>
               <TableBody>
                 {filteredLogs.map((log) => (
-                  <TableRow 
-                    key={log.id} 
-                    onClick={() => setSelectedPacket(log)} 
+                  <TableRow
+                    key={log.id}
+                    onClick={() => setSelectedPacket(log)}
                     className={`cursor-pointer hover:bg-muted/50 transition-colors duration-150 ${selectedPacket?.id === log.id ? 'bg-primary/10' : ''}`}
                   >
                     <TableCell className="text-xs font-mono">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 2 })}</TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         variant={getProtocolBadgeVariant(log.protocol)}
                         className={cn('text-xs py-0.5 px-1.5', getProtocolBadgeClassName(log.protocol))}
                       >
@@ -259,7 +261,7 @@ export default function TrafficStreamClient() {
                     <TableCell className="text-xs">{log.length} B</TableCell>
                     <TableCell className="text-xs max-w-[250px] truncate" title={log.summary}>{log.summary}</TableCell>
                     <TableCell className="text-right">
-                       <Badge 
+                       <Badge
                          variant={getActionBadgeVariant(log.action)}
                          className={cn('text-xs py-0.5 px-1.5', getActionBadgeClassName(log.action))}
                        >
@@ -294,7 +296,7 @@ export default function TrafficStreamClient() {
                 <div><strong>Length:</strong> {selectedPacket.length} Bytes</div>
                 <div className="break-words"><strong>Summary:</strong> {selectedPacket.summary}</div>
                 <div><strong>Action:</strong> <Badge variant={getActionBadgeVariant(selectedPacket.action)} className={cn('text-xs', getActionBadgeClassName(selectedPacket.action))}>{selectedPacket.action}</Badge></div>
-                
+
                 <div className="pt-2">
                   <h4 className="text-xs font-semibold text-muted-foreground mb-1">Payload Excerpt:</h4>
                   <pre className="p-3 bg-black/60 rounded-md text-xs overflow-auto max-h-[150px] text-green-300 font-mono border border-border/50">
@@ -317,4 +319,3 @@ export default function TrafficStreamClient() {
     </div>
   );
 }
-
