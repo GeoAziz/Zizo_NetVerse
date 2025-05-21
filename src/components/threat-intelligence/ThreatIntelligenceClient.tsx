@@ -1,9 +1,11 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
 import ThreatCard, { type Threat } from './ThreatCard';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card'; // Added import
 import { Bug, ShieldOff, Bot } from 'lucide-react'; // Example icons
 
 const mockThreats: Threat[] = [
