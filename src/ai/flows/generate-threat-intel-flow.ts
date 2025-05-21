@@ -6,13 +6,13 @@
  * - generateThreatIntel - A function that generates a list of threat intelligence entries.
  * - GenerateThreatIntelInput - The input type for the generateThreatIntel function.
  * - GenerateThreatIntelOutput - The return type for the generateThreatIntel function (an array of threats).
- * - ThreatIntelEntrySchema - The Zod schema for a single threat intelligence entry.
+ * - ThreatIntelEntry - The type for a single threat intelligence entry.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const ThreatIntelEntrySchema = z.object({
+const ThreatIntelEntrySchema = z.object({
   id: z.string().uuid().describe('A unique UUID for the threat entry.'),
   name: z.string().describe('The name or title of the threat (e.g., "KryllWorm Variant X", "Operation PhantomPhish"). Should sound technical and plausible for cybersecurity.'),
   severity: z.enum(['Critical', 'High', 'Medium', 'Low', 'Informational']).describe('The severity level of the threat.'),
