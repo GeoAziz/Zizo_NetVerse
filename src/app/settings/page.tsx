@@ -1,3 +1,7 @@
+
+"use client";
+
+import { useState } from 'react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Settings2, Palette, Bell, Brain, Cog } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,8 +11,46 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
+import { useToast } from "@/hooks/use-toast";
 
 export default function SettingsPage() {
+  const { toast } = useToast();
+
+  // General Settings State
+  const [username, setUsername] = useState("AnalystUser01");
+  const [timezone, setTimezone] = useState("utc-5");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // AI Configuration State
+  const [llmModel, setLlmModel] = useState("gemini-2.0-flash");
+  const [aiSuggestions, setAiSuggestions] = useState(false);
+
+  // Theme & Appearance State
+  const [fontSize, setFontSize] = useState("medium");
+  const [highContrast, setHighContrast] = useState(false);
+
+  // Notifications State
+  const [emailCritical, setEmailCritical] = useState(true);
+  const [inAppHigh, setInAppHigh] = useState(true);
+  const [soundAlerts, setSoundAlerts] = useState("subtle");
+
+  const handleSave = (settingsCategory: string) => {
+    toast({
+      title: `${settingsCategory} Settings Saved!`,
+      description: `Your ${settingsCategory.toLowerCase()} preferences have been updated (simulated).`,
+      variant: "default",
+    });
+  };
+
+  const handleThemeReset = () => {
+    setFontSize("medium");
+    setHighContrast(false);
+    toast({
+        title: "Theme Reset",
+        description: "Theme settings have been reset to default (simulated)."
+    });
+  }
+
   return (
     <div>
       <PageHeader
@@ -34,11 +76,11 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="username">Username</Label>
-                <Input id="username" defaultValue="AnalystUser01" className="max-w-sm bg-input border-border" />
+                <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} className="max-w-sm bg-input border-border" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="timezone">Timezone</Label>
-                <Select defaultValue="utc-5">
+                <Select value={timezone} onValueChange={setTimezone}>
                   <SelectTrigger className="w-full max-w-sm bg-input border-border">
                     <SelectValue placeholder="Select timezone" />
                   </SelectTrigger>
@@ -51,10 +93,10 @@ export default function SettingsPage() {
                 </Select>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch id="auto-refresh" defaultChecked />
+                <Switch id="auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh} />
                 <Label htmlFor="auto-refresh">Enable Auto-Refresh for Dashboards</Label>
               </div>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">Save General Settings</Button>
+              <Button onClick={() => handleSave("General")} className="bg-primary hover:bg-primary/90 text-primary-foreground">Save General Settings</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -68,7 +110,7 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="llmModel">Default Language Model</Label>
-                <Select defaultValue="gemini-2.0-flash">
+                <Select value={llmModel} onValueChange={setLlmModel}>
                   <SelectTrigger className="w-full max-w-sm bg-input border-border">
                     <SelectValue placeholder="Select AI model" />
                   </SelectTrigger>
@@ -85,10 +127,10 @@ export default function SettingsPage() {
                  <p className="text-xs text-muted-foreground">Currently fixed for image generation tasks.</p>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch id="ai-suggestions" />
+                <Switch id="ai-suggestions" checked={aiSuggestions} onCheckedChange={setAiSuggestions} />
                 <Label htmlFor="ai-suggestions">Enable AI-Powered Suggestions</Label>
               </div>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">Save AI Settings</Button>
+              <Button onClick={() => handleSave("AI")} className="bg-primary hover:bg-primary/90 text-primary-foreground">Save AI Settings</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -106,7 +148,7 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fontSize">Interface Font Size</Label>
-                <Select defaultValue="medium">
+                <Select value={fontSize} onValueChange={setFontSize}>
                   <SelectTrigger className="w-full max-w-xs bg-input border-border">
                     <SelectValue placeholder="Select font size" />
                   </SelectTrigger>
@@ -118,10 +160,10 @@ export default function SettingsPage() {
                 </Select>
               </div>
                <div className="flex items-center space-x-2">
-                <Switch id="high-contrast" />
+                <Switch id="high-contrast" checked={highContrast} onCheckedChange={setHighContrast} />
                 <Label htmlFor="high-contrast">Enable High Contrast Mode</Label>
               </div>
-              <Button variant="outline">Reset to Default Theme</Button>
+              <Button onClick={handleThemeReset} variant="outline">Reset to Default Theme</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -134,16 +176,16 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center space-x-2">
-                <Switch id="email-critical" defaultChecked />
+                <Switch id="email-critical" checked={emailCritical} onCheckedChange={setEmailCritical} />
                 <Label htmlFor="email-critical">Email notifications for Critical alerts</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch id="inapp-high" defaultChecked />
+                <Switch id="inapp-high" checked={inAppHigh} onCheckedChange={setInAppHigh} />
                 <Label htmlFor="inapp-high">In-app notifications for High severity threats</Label>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sound-alerts">Sound Alerts</Label>
-                 <Select defaultValue="subtle">
+                 <Select value={soundAlerts} onValueChange={setSoundAlerts}>
                   <SelectTrigger className="w-full max-w-xs bg-input border-border">
                     <SelectValue placeholder="Select alert sound" />
                   </SelectTrigger>
@@ -155,7 +197,7 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">Save Notification Settings</Button>
+              <Button onClick={() => handleSave("Notification")} className="bg-primary hover:bg-primary/90 text-primary-foreground">Save Notification Settings</Button>
             </CardContent>
           </Card>
         </TabsContent>
