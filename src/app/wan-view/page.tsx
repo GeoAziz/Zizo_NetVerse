@@ -9,8 +9,8 @@ export default function WanViewPage() {
   return (
     <AppLayout>
       <div>
-        <PageHeader 
-          title="WAN View - Global Traffic Monitor" 
+        <PageHeader
+          title="WAN View - Global Traffic Monitor"
           description="Real-time 3D globe visualizing global packet travel and active connections."
           icon={Globe}
         />

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Activity, AlertTriangle, BarChartHorizontalBig, Zap, Maximize, ChevronRight } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { PolarAngleAxis, PolarGrid, Radar, RadarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import AppLayout from '@/components/layout/AppLayout';
 import { NAV_LINKS, APP_NAME } from '@/lib/constants';
 import { motion } from 'framer-motion';
@@ -80,7 +80,7 @@ export default function DashboardPage() {
     }, 2000);
 
     const radarInterval = setInterval(() => {
-      setRadarChartData(prevData => 
+      setRadarChartData(prevData =>
         prevData.map(item => ({
           ...item,
           A: Math.min(item.fullMark, Math.max(0, item.A + Math.floor(Math.random() * 20) - 10)),
@@ -88,16 +88,15 @@ export default function DashboardPage() {
         }))
       );
     }, 5000);
-    
+
     const vitalsInterval = setInterval(() => {
       setVitalsChartData(prevData => {
         const lastDataPoint = prevData[prevData.length - 1];
-        // Ensure lastDataPoint.name is a valid time string like "HH:MM"
         const timeParts = lastDataPoint.name.split(':');
         const date = new Date();
         date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
-        
-        const newTimeDate = new Date(date.getTime() + 5 * 60000);
+
+        const newTimeDate = new Date(date.getTime() + 5 * 60000); // Add 5 minutes
         const newTime = newTimeDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
         const newDataPoint = {
@@ -133,11 +132,11 @@ export default function DashboardPage() {
         <PageHeader
           title={`${APP_NAME} Mission Control`}
           description="Centralized real-time overview of network operations and cybersecurity posture."
-          icon={Maximize} // Changed icon to something more 'control panel' like
+          icon={Maximize}
         />
 
         {/* Top Status Cards */}
-        <motion.div 
+        <motion.div
           className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
           initial="hidden"
           animate="visible"
@@ -192,15 +191,21 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {commandModules.map((item, idx) => (
-                <motion.div key={item.href} variants={cardVariants} custom={idx}>
+                <motion.div
+                  key={item.href}
+                  variants={cardVariants}
+                  custom={idx}
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                >
                   <Link href={item.href} passHref>
-                    <Card className="h-full flex flex-col justify-between bg-card-foreground/5 hover:bg-primary/10 hover:border-primary/70 border-border/30 transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer">
+                    <Card className="h-full flex flex-col justify-between bg-card-foreground/5 hover:bg-primary/10 hover:border-primary/70 border-border/30 transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer group">
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
-                           <item.icon className="h-7 w-7 text-primary mb-2" />
-                           <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                           <item.icon className="h-7 w-7 text-primary mb-2 transition-colors group-hover:text-accent" />
+                           <ChevronRight className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-accent" />
                         </div>
-                        <CardTitle className="text-lg text-foreground">{item.label}</CardTitle>
+                        <CardTitle className="text-lg text-foreground group-hover:text-primary transition-colors">{item.label}</CardTitle>
                       </CardHeader>
                       <CardContent className="flex-grow pb-3">
                         <p className="text-xs text-muted-foreground line-clamp-2">
@@ -274,6 +279,6 @@ export default function DashboardPage() {
           </motion.div>
         </div>
       </div>
-    </AppLayout> 
+    </AppLayout>
   );
 }

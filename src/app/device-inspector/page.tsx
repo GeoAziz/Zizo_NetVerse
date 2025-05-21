@@ -1,7 +1,7 @@
 
 import PageHeader from '@/components/shared/PageHeader';
 import AppLayout from '@/components/layout/AppLayout';
-import { LucideCpu } from 'lucide-react'; // Placeholder icon
+import { Cpu } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
 
@@ -9,10 +9,10 @@ export default function DeviceInspectorPage() {
   return (
     <AppLayout>
       <div>
-        <PageHeader 
-          title="Device Inspector" 
+        <PageHeader
+          title="Device Inspector"
           description="Detailed dossier and management controls for network devices."
-          icon={LucideCpu}
+          icon={Cpu}
         />
         <Card className="shadow-xl">
           <CardHeader>
@@ -21,7 +21,7 @@ export default function DeviceInspectorPage() {
           </CardHeader>
           <CardContent className="h-[60vh] flex items-center justify-center bg-background/10 border border-border/30 rounded-md">
             <div className="text-center p-8">
-              <LucideCpu className="h-20 w-20 text-primary mx-auto mb-4" />
+              <Cpu className="h-20 w-20 text-primary mx-auto mb-4" />
               <p className="text-2xl font-semibold text-foreground/90">
                 Device Inspector Interface Under Development
               </p>

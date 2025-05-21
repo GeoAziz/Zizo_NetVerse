@@ -9,8 +9,8 @@ export default function ThreatMapPage() {
   return (
     <AppLayout>
       <div>
-        <PageHeader 
-          title="Global Threat Activity Map" 
+        <PageHeader
+          title="Global Threat Activity Map"
           description="Visualize active and historical cyber threats, their origins, and targets."
           icon={Map}
         />
