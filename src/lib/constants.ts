@@ -8,11 +8,11 @@ export type NavLink = {
   longLabel?: string;
 };
 
-export const APP_NAME = "NetSense";
+export const APP_NAME = "Zizo_NetVerse";
 export const APP_DESCRIPTION = "Cybersecurity Command Deck";
 
 export const NAV_LINKS: NavLink[] = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard, longLabel: 'Overview Dashboard' },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, longLabel: 'Overview Dashboard' },
   { href: '/network-visualization', label: 'Network Map', icon: Globe, longLabel: '3D Network Visualization' },
   { href: '/traffic-stream', label: 'Traffic Stream', icon: ListFilter, longLabel: 'Live Traffic Interceptor' },
   { href: '/threat-intelligence', label: 'Threat Intel', icon: ShieldAlert, longLabel: 'Threat Intelligence Feed' },
