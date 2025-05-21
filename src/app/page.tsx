@@ -4,14 +4,15 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react'; // Or any other loading icon you prefer
+import { Loader2 } from 'lucide-react';
+import { APP_NAME } from '@/lib/constants';
 
 export default function SplashScreenPage() {
   const router = useRouter();
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.push('/dashboard');
+      router.push('/login'); // Updated redirect to /login
     }, 5000); // 5 seconds
 
     return () => clearTimeout(timer); // Cleanup the timer
@@ -26,7 +27,7 @@ export default function SplashScreenPage() {
         className="text-center"
       >
         <h1 className="text-5xl md:text-7xl font-bold text-primary mb-4">
-          Zizo_NetVerse
+          {APP_NAME}
         </h1>
         <motion.p
           initial={{ opacity: 0 }}
@@ -53,7 +54,7 @@ export default function SplashScreenPage() {
         animate={{ opacity: 1 }}
         transition={{ delay: 2, duration: 1.5 }}
       >
-        <p>&copy; {new Date().getFullYear()} Zizo_NetVerse. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} {APP_NAME}. All rights reserved.</p>
         <p>DevMahnXAI & Zizo Collaboration</p>
       </motion.div>
     </div>
