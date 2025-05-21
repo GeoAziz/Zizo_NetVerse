@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Fingerprint, ShieldKeyhole, Bot, Eye, LogIn, UserCircle } from 'lucide-react';
+import { Fingerprint, Shield, Bot, Eye, LogIn, UserCircle } from 'lucide-react'; // Changed ShieldKeyhole to Shield
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,7 +87,7 @@ export default function LoginPage() {
         animate="visible"
         className="flex items-center text-4xl md:text-5xl font-bold text-primary mb-8"
       >
-        <ShieldKeyhole className="h-10 w-10 mr-3 text-accent animate-pulse" />
+        <Shield className="h-10 w-10 mr-3 text-accent animate-pulse" /> {/* Changed ShieldKeyhole to Shield */}
         {APP_NAME}
       </motion.div>
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
               <CardTitle className="text-2xl text-accent">Agent Authentication Required</CardTitle>
             </motion.div>
             <motion.div custom={2} variants={itemVariants}>
-              <CardDescription>Secure access to Zizo_NetVerse command deck.</CardDescription>
+              <CardDescription>Secure access to {APP_NAME} command deck.</CardDescription>
             </motion.div>
           </CardHeader>
           <CardContent>
@@ -119,7 +119,7 @@ export default function LoginPage() {
               </motion.div>
               <motion.div custom={4} variants={itemVariants} className="space-y-2">
                 <Label htmlFor="password" className="text-muted-foreground flex items-center">
-                  <ShieldKeyhole className="mr-2 h-4 w-4" /> Access Code / Password
+                  <Shield className="mr-2 h-4 w-4" /> Access Code / Password {/* Changed ShieldKeyhole to Shield */}
                 </Label>
                 <Input
                   id="password"
