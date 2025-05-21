@@ -1,7 +1,8 @@
+
 // src/ai/flows/generate-incident-report.ts
 'use server';
 /**
- * @fileOverview An AI agent for generating cybersecurity incident reports with visualizations.
+ * @fileOverview An AI agent for generating cybersecurity incident reports with visualizations and rule suggestions.
  *
  * - generateIncidentReport - A function that generates an incident report.
  * - GenerateIncidentReportInput - The input type for the generateIncidentReport function.
@@ -51,6 +52,9 @@ const GenerateIncidentReportOutputSchema = z.object({
     .describe(
       'A data URI containing the visualization as an image (e.g., a network map or threat timeline).'
     ),
+  suggestedRuleImprovements: z
+    .array(z.string())
+    .describe('Specific, actionable rule improvement suggestions for a proxy/firewall based on the incident analysis. E.g., "Block IP X.X.X.X on port YYYY", "Alert on traffic to domain Z.com".')
 });
 export type GenerateIncidentReportOutput = z.infer<
   typeof GenerateIncidentReportOutputSchema
@@ -75,6 +79,7 @@ const generateIncidentReportPrompt = ai.definePrompt({
   - A detailed analysis of the incident, including its impact on the network.
   - Actionable recommendations for mitigating the incident and preventing future occurrences.
   - A visualization that complements the report, such as a network map, threat timeline, or geo-distribution of attacks.
+  - 1-2 specific, actionable rule improvement suggestions for a proxy/firewall based on the incident analysis. These should be precise (e.g., "Block outbound TCP connections to IP 123.45.67.89 on port 4444", "Create new rule to monitor and alert on DNS requests for *.maliciousdomain.com").
 
   Incident Description: {{{incidentDescription}}}
   Network Data Summary: {{{networkDataSummary}}}
@@ -82,7 +87,8 @@ const generateIncidentReportPrompt = ai.definePrompt({
   Visualization Type: {{{visualizationType}}}
 
   Ensure the report is clear, concise, and provides valuable insights to cybersecurity professionals.
-  Also ensure the report output is in markdown format.
+  Also ensure the report output for executiveSummary, detailedAnalysis, and recommendations is in markdown format.
+  The suggestedRuleImprovements should be an array of strings.
 
   Include a visualizationDataUri field, generating an image with a description appropriate for the provided visualization type.
   
@@ -122,3 +128,4 @@ const generateIncidentReportFlow = ai.defineFlow(
     };
   }
 );
+

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { generateIncidentReport, type GenerateIncidentReportInput, type GenerateIncidentReportOutput } from '@/ai/flows/generate-incident-report';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, ListChecks } from 'lucide-react';
 
 const formSchema = z.object({
   incidentDescription: z.string().min(50, "Incident description must be at least 50 characters."),
@@ -181,6 +182,22 @@ export default function IncidentReportForm() {
                   <pre className="whitespace-pre-wrap font-sans">{report.recommendations}</pre>
                 </div>
               </div>
+
+              {report.suggestedRuleImprovements && report.suggestedRuleImprovements.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-medium mt-4 mb-1 text-accent flex items-center">
+                    <ListChecks className="mr-2 h-5 w-5" />
+                    Suggested Rule Improvements
+                  </h3>
+                  <ul className="list-none p-3 bg-black/20 rounded-md border border-border/50 text-sm space-y-2">
+                    {report.suggestedRuleImprovements.map((rule, index) => (
+                      <li key={index} className="font-mono text-xs text-foreground/90 bg-black/30 p-2 rounded-sm border border-border/30">
+                        {rule}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               
               {report.visualizationDataUri && (
                 <div className="mt-6">
@@ -210,3 +227,4 @@ export default function IncidentReportForm() {
     </div>
   );
 }
+
