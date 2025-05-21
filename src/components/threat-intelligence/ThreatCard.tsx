@@ -39,7 +39,7 @@ type ThreatCardProps = {
   threat: Threat;
 };
 
-const severityIcons = {
+const severityIcons: Record<Threat['severity'], JSX.Element> = {
   Critical: <AlertTriangle className="h-5 w-5 text-red-400" />,
   High: <AlertTriangle className="h-5 w-5 text-orange-400" />,
   Medium: <Zap className="h-5 w-5 text-yellow-400" />,
@@ -47,7 +47,7 @@ const severityIcons = {
   Informational: <Info className="h-5 w-5 text-gray-400" />,
 };
 
-const severityBadgeVariant = {
+const severityBadgeVariant: Record<Threat['severity'], 'destructive' | 'secondary' | 'outline'> = {
   Critical: 'destructive',
   High: 'destructive', 
   Medium: 'secondary',
@@ -67,6 +67,8 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
     });
   };
 
+  const ThreatIcon = threat.icon;
+
   return (
     <Card className="shadow-xl hover:shadow-primary/60 transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-card border border-border overflow-hidden flex flex-col">
       <CardHeader className="pb-3">
@@ -81,7 +83,7 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
               <Badge variant="outline" className="text-xs border-accent text-accent">{threat.type}</Badge>
             </div>
           </div>
-          {threat.icon && <threat.icon className="h-8 w-8 text-muted-foreground" />}
+          {ThreatIcon && <ThreatIcon className="h-8 w-8 text-muted-foreground" />}
         </div>
       </CardHeader>
       <CardContent className="space-y-3 pb-4 flex-grow">
@@ -131,7 +133,7 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
           <AlertDialogContent className="max-w-2xl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-2xl text-primary flex items-center">
-                {threat.icon && <threat.icon className="mr-3 h-7 w-7 text-primary/80" />}
+                {ThreatIcon && <ThreatIcon className="mr-3 h-7 w-7 text-primary/80" />}
                 {threat.name}
               </AlertDialogTitle>
               <AlertDialogDescription className="text-base text-muted-foreground pt-1">
@@ -140,7 +142,7 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
             </AlertDialogHeader>
             
             <div className="space-y-3 py-4 max-h-[60vh] overflow-y-auto px-1 text-sm">
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center flex-wrap">
                 <Badge variant={severityBadgeVariant[threat.severity] || 'default'} className="text-sm px-3 py-1">
                   {severityIcons[threat.severity]}
                   <span className="ml-1.5">{threat.severity}</span>
@@ -162,7 +164,7 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
                     width={400} 
                     height={60} 
                     className="rounded opacity-80 border border-border/50 shadow-sm"
-                    data-ai-hint="dna sequence" 
+                    data-ai-hint="dna sequence abstract" 
                   />
                 </div>
               )}
@@ -214,3 +216,5 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
     </Card>
   );
 }
+
+    
