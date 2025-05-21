@@ -8,9 +8,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, SkipForward, Search, Download, Eye } from 'lucide-react';
+import { Play, Pause, SkipForward, Search, Download, Eye, Brain, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { analyzeTrafficPacket, type AnalyzeTrafficPacketInput, type AnalyzeTrafficPacketOutput } from '@/ai/flows/analyze-traffic-packet-flow';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type TrafficLog = {
   id: string;
@@ -88,6 +102,10 @@ export default function TrafficStreamClient() {
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [isStreaming, setIsStreaming] = useState(true);
   const [selectedPacket, setSelectedPacket] = useState<TrafficLog | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeTrafficPacketOutput | null>(null);
+  const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setAllLogs(generateMockData(75)); // Initial load
@@ -115,15 +133,34 @@ export default function TrafficStreamClient() {
     ).slice(0, 50); // Display max 50 in table for performance, but filter all
   }, [allLogs, searchTerm, protocolFilter, actionFilter]);
 
-  const getProtocolBadgeVariant = (protocol: TrafficLog['protocol']) => {
-    switch (protocol) {
-      case 'HTTPS': return 'default'; // More prominent
-      case 'HTTP': return 'secondary';
-      case 'TCP': return 'outline';
-      case 'WebSocket': return 'default';
-      case 'DNS': return 'secondary';
-      case 'FTP': return 'outline';
-      default: return 'default';
+  const handleAnalyzePacket = async () => {
+    if (!selectedPacket) return;
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+    setShowAnalysisDialog(true);
+    try {
+      const input: AnalyzeTrafficPacketInput = {
+        protocol: selectedPacket.protocol,
+        sourceIp: selectedPacket.sourceIp,
+        sourcePort: selectedPacket.sourcePort,
+        destIp: selectedPacket.destIp,
+        destPort: selectedPacket.destPort,
+        summary: selectedPacket.summary,
+        payloadExcerpt: selectedPacket.payloadExcerpt,
+        action: selectedPacket.action,
+      };
+      const result = await analyzeTrafficPacket(input);
+      setAnalysisResult(result);
+    } catch (error) {
+      console.error("Error analyzing packet:", error);
+      toast({
+        title: "AI Analysis Failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred during analysis.",
+        variant: "destructive",
+      });
+      setShowAnalysisDialog(false); // Close dialog on error
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -139,25 +176,27 @@ export default function TrafficStreamClient() {
     }
   }
 
-  const getActionBadgeVariant = (action: TrafficLog['action']) => {
-    switch (action) {
-      case 'Blocked': return 'destructive';
-      case 'Modified': return 'secondary';
-      case 'Flagged': return 'default'; // Use default, but will be styled by className
-      case 'Allowed': return 'default'; // Use default, but will be styled by className
-      default: return 'default';
-    }
-  }
-
   const getActionBadgeClassName = (action: TrafficLog['action']) => {
      switch (action) {
-      case 'Blocked': return ''; // Destructive variant handles it
+      case 'Blocked': return 'bg-red-500/70 text-red-100 border-red-500/80 hover:bg-red-600/70';
       case 'Modified': return 'bg-yellow-400/80 text-yellow-950 border-yellow-500/70 hover:bg-yellow-500/80';
       case 'Flagged': return 'bg-orange-500/80 text-orange-950 border-orange-600/70 hover:bg-orange-600/80';
       case 'Allowed': return 'bg-green-400/70 text-green-950 border-green-500/60 hover:bg-green-500/70';
       default: return 'bg-gray-400/70 text-gray-950 border-gray-500/60 hover:bg-gray-500/70';
     }
   }
+
+  const getSeverityBadgeClass = (severity: AnalyzeTrafficPacketOutput['severity'] | undefined) => {
+    if (!severity) return 'bg-gray-500/30 text-gray-200 border-gray-500/60';
+    switch (severity) {
+        case 'Critical': return 'bg-red-700 text-red-100 border-red-600';
+        case 'High': return 'bg-red-500 text-red-100 border-red-400';
+        case 'Medium': return 'bg-orange-500 text-orange-100 border-orange-400';
+        case 'Low': return 'bg-yellow-500 text-yellow-950 border-yellow-400';
+        case 'Informational': return 'bg-blue-500 text-blue-100 border-blue-400';
+        default: return 'bg-gray-500 text-gray-100 border-gray-400';
+    }
+  };
 
 
   return (
@@ -227,7 +266,7 @@ export default function TrafficStreamClient() {
             <CardTitle>Live Packet Stream</CardTitle>
             <CardDescription>Displaying {filteredLogs.length} of {Math.min(allLogs.length, 150)} packets (max 150 displayed). Filtered from {allLogs.length} total logs.</CardDescription>
           </CardHeader>
-          <CardContent className="max-h-[calc(100vh-350px)] overflow-auto"> {/* Adjusted height */}
+          <CardContent className="max-h-[calc(100vh-350px)] overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -244,13 +283,17 @@ export default function TrafficStreamClient() {
                 {filteredLogs.map((log) => (
                   <TableRow
                     key={log.id}
-                    onClick={() => setSelectedPacket(log)}
+                    onClick={() => {
+                        setSelectedPacket(log);
+                        setAnalysisResult(null); // Clear previous analysis
+                        setShowAnalysisDialog(false); // Close if open
+                    }}
                     className={`cursor-pointer hover:bg-muted/50 transition-colors duration-150 ${selectedPacket?.id === log.id ? 'bg-primary/10' : ''}`}
                   >
                     <TableCell className="text-xs font-mono">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 2 })}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={getProtocolBadgeVariant(log.protocol)}
+                        variant={"outline"}
                         className={cn('text-xs py-0.5 px-1.5', getProtocolBadgeClassName(log.protocol))}
                       >
                         {log.protocol}
@@ -262,7 +305,7 @@ export default function TrafficStreamClient() {
                     <TableCell className="text-xs max-w-[250px] truncate" title={log.summary}>{log.summary}</TableCell>
                     <TableCell className="text-right">
                        <Badge
-                         variant={getActionBadgeVariant(log.action)}
+                         variant={"outline"}
                          className={cn('text-xs py-0.5 px-1.5', getActionBadgeClassName(log.action))}
                        >
                         {log.action}
@@ -280,22 +323,22 @@ export default function TrafficStreamClient() {
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-1 shadow-xl border-border/70 h-fit sticky top-24"> {/* Make details card sticky */}
+        <Card className="xl:col-span-1 shadow-xl border-border/70 h-fit sticky top-24">
           <CardHeader>
             <CardTitle>Packet Details</CardTitle>
             <CardDescription>Select a packet from the stream to view its details.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto text-sm"> {/* Adjusted height */}
+          <CardContent className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto text-sm">
             {selectedPacket ? (
               <>
                 <div className="break-all"><strong>ID:</strong> {selectedPacket.id}</div>
                 <div><strong>Timestamp:</strong> {new Date(selectedPacket.timestamp).toLocaleString()}</div>
-                <div><strong>Protocol:</strong> <Badge variant={getProtocolBadgeVariant(selectedPacket.protocol)} className={cn('text-xs', getProtocolBadgeClassName(selectedPacket.protocol))}>{selectedPacket.protocol}</Badge></div>
+                <div><strong>Protocol:</strong> <Badge variant={"outline"} className={cn('text-xs', getProtocolBadgeClassName(selectedPacket.protocol))}>{selectedPacket.protocol}</Badge></div>
                 <div><strong>Source:</strong> {selectedPacket.sourceIp}:{selectedPacket.sourcePort}</div>
                 <div><strong>Destination:</strong> {selectedPacket.destIp}:{selectedPacket.destPort}</div>
                 <div><strong>Length:</strong> {selectedPacket.length} Bytes</div>
                 <div className="break-words"><strong>Summary:</strong> {selectedPacket.summary}</div>
-                <div><strong>Action:</strong> <Badge variant={getActionBadgeVariant(selectedPacket.action)} className={cn('text-xs', getActionBadgeClassName(selectedPacket.action))}>{selectedPacket.action}</Badge></div>
+                <div><strong>Action:</strong> <Badge variant={"outline"} className={cn('text-xs', getActionBadgeClassName(selectedPacket.action))}>{selectedPacket.action}</Badge></div>
 
                 <div className="pt-2">
                   <h4 className="text-xs font-semibold text-muted-foreground mb-1">Payload Excerpt:</h4>
@@ -307,7 +350,10 @@ export default function TrafficStreamClient() {
                 <div className="pt-3 flex flex-wrap gap-2">
                     <Button variant="outline" size="sm"><Search className="mr-1.5 h-3.5 w-3.5" /> Inspect Raw</Button>
                     <Button variant="outline" size="sm"><SkipForward className="mr-1.5 h-3.5 w-3.5" /> Replay Packet</Button>
-                    <Button variant="outline" size="sm"><Eye className="mr-1.5 h-3.5 w-3.5" /> Analyze with AI</Button>
+                    <Button variant="primary" size="sm" onClick={handleAnalyzePacket} disabled={isAnalyzing}>
+                      {isAnalyzing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Brain className="mr-1.5 h-3.5 w-3.5" />}
+                       Analyze with AI
+                    </Button>
                   </div>
               </>
             ) : (
@@ -316,6 +362,68 @@ export default function TrafficStreamClient() {
           </CardContent>
         </Card>
       </div>
+
+      {showAnalysisDialog && (
+        <AlertDialog open={showAnalysisDialog} onOpenChange={setShowAnalysisDialog}>
+          <AlertDialogContent className="max-w-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center">
+                <Brain className="mr-2 h-5 w-5 text-primary" /> AI Packet Analysis
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                AI-generated insights for the selected packet.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <ScrollArea className="max-h-[60vh] pr-2">
+              <div className="py-4 space-y-3 text-sm">
+                {isAnalyzing && !analysisResult && (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    <p className="mt-3 text-muted-foreground">AI is analyzing the packet...</p>
+                  </div>
+                )}
+                {analysisResult && (
+                  <>
+                    <div>
+                      <strong>Suspicious:</strong>{' '}
+                      <Badge variant={analysisResult.isSuspicious ? "destructive" : "default"} className={cn(analysisResult.isSuspicious ? '' : 'bg-green-600/80 text-green-100 border-green-700')}>
+                        {analysisResult.isSuspicious ? 'Yes' : 'No'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <strong>Severity:</strong>{' '}
+                      <Badge variant="outline" className={cn('px-2 py-0.5', getSeverityBadgeClass(analysisResult.severity))}>
+                        {analysisResult.severity}
+                      </Badge>
+                    </div>
+                     <div><strong>Confidence:</strong> { (analysisResult.confidenceScore * 100).toFixed(0) }%</div>
+                    <div className="pt-1">
+                      <strong className="block mb-0.5">Reasoning:</strong>
+                      <p className="p-2 bg-muted/50 rounded-md border border-border/30 text-muted-foreground text-xs">
+                        {analysisResult.suspicionReason}
+                      </p>
+                    </div>
+                    <div>
+                      <strong className="block mb-0.5">Suggested Actions:</strong>
+                      <ul className="list-disc list-inside p-2 bg-muted/50 rounded-md border border-border/30 text-muted-foreground text-xs space-y-1">
+                        {analysisResult.suggestedActions.map((action, index) => (
+                          <li key={index}>{action}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
+                {!isAnalyzing && !analysisResult && ( // Should only happen on error before first analysis
+                    <p className="text-muted-foreground text-center py-8">Analysis could not be displayed.</p>
+                )}
+              </div>
+            </ScrollArea>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setShowAnalysisDialog(false)}>Close</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
