@@ -18,5 +18,5 @@ export const NAV_LINKS: NavLink[] = [
   { href: '/threat-intelligence', label: 'Threat Intel', icon: ShieldAlert, longLabel: 'Threat Intelligence Feed' },
   { href: '/incident-reporting', label: 'AI Reporting', icon: BotMessageSquare, longLabel: 'AI Incident Reporting' },
   { href: '/proxy-engine', label: 'Proxy Engine', icon: Network, longLabel: 'Proxy Interception Engine Status' },
-  // { href: '/settings', label: 'Settings', icon: Settings2 }, // Example for future use
+  { href: '/settings', label: 'Settings', icon: Settings2, longLabel: 'Application Settings' },
 ];
