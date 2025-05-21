@@ -54,18 +54,22 @@ const vitalsChartConfig = {
 } satisfies ChartConfig;
 
 export default function DashboardPage() {
-  const [activeThreats, setActiveThreats] = useState(Math.floor(Math.random() * 20) + 5);
-  const [packetsIntercepted, setPacketsIntercepted] = useState(Math.floor(Math.random() * 500000) + 1000000);
+  const [activeThreats, setActiveThreats] = useState<number | null>(null);
+  const [packetsIntercepted, setPacketsIntercepted] = useState<number | null>(null);
   const [radarChartData, setRadarChartData] = useState(initialRadarChartData);
   const [vitalsChartData, setVitalsChartData] = useState(initialVitalsChartData);
 
   useEffect(() => {
+    // Client-side initialization for Math.random() dependent state
+    setActiveThreats(Math.floor(Math.random() * 20) + 5);
+    setPacketsIntercepted(Math.floor(Math.random() * 500000) + 1000000);
+
     const threatInterval = setInterval(() => {
-      setActiveThreats(prev => Math.max(0, prev + Math.floor(Math.random() * 6) - 3)); // Fluctuate between -3 and +2
+      setActiveThreats(prev => prev !== null ? Math.max(0, prev + Math.floor(Math.random() * 6) - 3) : Math.floor(Math.random() * 20) + 5); // Fluctuate between -3 and +2
     }, 3000);
 
     const packetInterval = setInterval(() => {
-      setPacketsIntercepted(prev => prev + Math.floor(Math.random() * 15000) + 5000);
+      setPacketsIntercepted(prev => prev !== null ? prev + Math.floor(Math.random() * 15000) + 5000 : Math.floor(Math.random() * 500000) + 1000000);
     }, 2000);
 
     const radarInterval = setInterval(() => {
@@ -115,7 +119,7 @@ export default function DashboardPage() {
             <AlertTriangle className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">{activeThreats}</div>
+            <div className="text-4xl font-bold">{activeThreats !== null ? activeThreats : '...'}</div>
             <p className="text-xs text-muted-foreground">Real-time detection count</p>
           </CardContent>
         </Card>
@@ -126,7 +130,7 @@ export default function DashboardPage() {
             <BarChartHorizontalBig className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">{(packetsIntercepted / 1000000).toFixed(1)}M</div>
+            <div className="text-4xl font-bold">{packetsIntercepted !== null ? (packetsIntercepted / 1000000).toFixed(1) + 'M' : '...'}</div>
             <p className="text-xs text-muted-foreground">Processed data volume</p>
           </CardContent>
         </Card>
