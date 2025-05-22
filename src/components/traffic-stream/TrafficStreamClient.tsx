@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -8,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, SkipForward, Search, Download, Eye, Brain, Loader2, TerminalSquare, ChevronRight, Network, AlertCircle, ShieldCheck, BookUser } from 'lucide-react';
+import { Play, Pause, SkipForward, Search, Download, Eye, Brain, Loader2, TerminalSquare, ChevronRight, Network, AlertCircle, ShieldCheck, BookUser, Terminal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
@@ -46,9 +45,13 @@ type TrafficLog = {
 const generateMockData = (count: number, category: LogCategory): TrafficLog[] => {
   const protocols: Array<NonNullable<TrafficLog['protocol']>> = ['HTTP', 'HTTPS', 'TCP', 'WebSocket', 'DNS', 'FTP', 'SSH', 'NTP'];
   const networkActions: Array<NonNullable<TrafficLog['action']>> = ['Allowed', 'Blocked', 'Modified', 'Flagged', 'Logged'];
-  const systemSummaries = ["System boot initiated.", "Service 'nginx' started successfully.", "CPU usage exceeded 90% threshold.", "Disk space low on /var/log.", "User 'zizo_admin' logged in."];
-  const alertSummaries = ["Critical: Brute force attempt detected on SSH.", "High: Known malware signature found in HTTP stream.", "Medium: Unusual outbound connection from 10.1.1.50.", "Low: Repeated login failures for user 'guest'."];
-  const auditSummaries = ["User 'devmahnx' accessed /api/config.", "Firewall rule #1023 updated by 'zizo_admin'.", "System settings changed: NTP server updated.", "Security policy 'CorpNet-v2' applied."];
+  const systemActions: Array<NonNullable<TrafficLog['action']>> = ['System Event'];
+  const alertActions: Array<NonNullable<TrafficLog['action']>> = ['Security Alert'];
+  const auditActions: Array<NonNullable<TrafficLog['action']>> = ['User Action'];
+  
+  const systemSummaries = ["System boot initiated.", "Service 'nginx' started successfully.", "CPU usage exceeded 90% threshold.", "Disk space low on /var/log.", "User 'zizo_admin' logged in.", "Kernel update applied.", "Firewall reloaded."];
+  const alertSummaries = ["Critical: Brute force attempt detected on SSH.", "High: Known malware signature found in HTTP stream.", "Medium: Unusual outbound connection from 10.1.1.50.", "Low: Repeated login failures for user 'guest'.", "Critical: Potential DDoS activity on port 80.", "High: SQL Injection attempt on /api/login."];
+  const auditSummaries = ["User 'devmahnx' accessed /api/config.", "Firewall rule #1023 updated by 'zizo_admin'.", "System settings changed: NTP server updated.", "Security policy 'CorpNet-v2' applied.", "User 'analyst01' exported logs."];
   
   const commonDestPorts: { [key in NonNullable<TrafficLog['protocol']>]?: number[] } = {
     HTTP: [80, 8080], HTTPS: [443], DNS: [53], FTP: [20, 21], SSH: [22], NTP: [123],
@@ -67,24 +70,26 @@ const generateMockData = (count: number, category: LogCategory): TrafficLog[] =>
     if (category === 'Network') {
       const protocol = protocols[i % protocols.length];
       const destPortOptions = commonDestPorts[protocol] || [Math.floor(Math.random() * 64511) + 1024];
+      const sourceIp = `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`;
+      const destIp = i % 3 === 0 ? `172.16.${Math.floor(Math.random()*32)}.${Math.floor(Math.random()*254)+1}` : `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`;
       log = {
         ...log,
         protocol,
-        sourceIp: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`,
+        sourceIp,
         sourcePort: Math.floor(Math.random() * 64511) + 1024,
-        destIp: i % 3 === 0 ? `172.16.${Math.floor(Math.random()*32)}.${Math.floor(Math.random()*254)+1}` : `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`,
+        destIp,
         destPort: destPortOptions[Math.floor(Math.random() * destPortOptions.length)],
         length: Math.floor(Math.random() * 1400) + (protocol === 'TCP' ? 20 : 40),
-        summary: `Packet transfer ${protocol} ${log.sourceIp} -> ${log.destIp}`,
+        summary: `${protocol} flow: ${sourceIp} to ${destIp}`,
         action: networkActions[i % networkActions.length],
-        payloadExcerpt: "User-Agent: ZizoNetVerse-Client/1.0",
+        payloadExcerpt: "GET / HTTP/1.1\r\nHost: example.com\r\nUser-Agent: ZizoNetVerse-Client/1.0\r\nAccept: */*\r\n",
       };
     } else if (category === 'System') {
-      log = { ...log, summary: systemSummaries[i % systemSummaries.length], action: 'System Event' };
+      log = { ...log, summary: systemSummaries[i % systemSummaries.length], action: systemActions[0], sourceIp: 'SYSTEM', sourcePort: 0 };
     } else if (category === 'Alerts') {
-      log = { ...log, summary: alertSummaries[i % alertSummaries.length], action: 'Security Alert' };
+      log = { ...log, summary: alertSummaries[i % alertSummaries.length], action: alertActions[0], sourceIp: 'SYSTEM', sourcePort: 0 };
     } else if (category === 'Audit') {
-      log = { ...log, summary: auditSummaries[i % auditSummaries.length], action: 'User Action' };
+      log = { ...log, summary: auditSummaries[i % auditSummaries.length], action: auditActions[0], sourceIp: 'SYSTEM', sourcePort: 0 };
     }
     return log as TrafficLog;
   });
@@ -172,7 +177,6 @@ export default function TrafficStreamClient() {
   };
 
   const getProtocolBadgeClassName = (protocol: TrafficLog['protocol']) => {
-     // ... (keep existing badge logic)
      switch (protocol) {
       case 'HTTPS': return 'bg-green-500/20 text-green-300 border-green-500/50 hover:bg-green-500/30';
       case 'HTTP': return 'bg-blue-500/20 text-blue-300 border-blue-500/50 hover:bg-blue-500/30';
@@ -187,7 +191,6 @@ export default function TrafficStreamClient() {
   }
 
   const getActionBadgeClassName = (action: TrafficLog['action']) => {
-     // ... (keep existing badge logic)
      switch (action) {
       case 'Blocked': return 'bg-red-600/80 text-red-100 border-red-500/90 hover:bg-red-700/80';
       case 'Modified': return 'bg-yellow-500/80 text-yellow-950 border-yellow-600/70 hover:bg-yellow-600/80';
@@ -202,7 +205,6 @@ export default function TrafficStreamClient() {
   }
 
   const getSeverityBadgeClass = (severity: AnalyzeTrafficPacketOutput['severity'] | undefined) => {
-    // ... (keep existing badge logic)
     if (!severity) return 'bg-slate-600/30 text-slate-200 border-slate-500/60';
     switch (severity) {
         case 'Critical': return 'bg-red-700 text-red-100 border-red-600';
@@ -215,7 +217,7 @@ export default function TrafficStreamClient() {
   };
   
   const renderLogTable = (category: LogCategory) => (
-    <ScrollArea className="h-[calc(100vh-480px)] lg:h-[calc(100vh-440px)]">
+    <ScrollArea className="h-[calc(100vh-480px)] lg:h-[calc(100vh-440px)] bg-black/30">
       <Table>
         <TableHeader className="sticky top-0 bg-card/90 backdrop-blur-sm z-10">
           <TableRow className="border-b-border/50">
@@ -233,7 +235,7 @@ export default function TrafficStreamClient() {
             <TableRow
               key={log.id}
               onClick={() => { setSelectedPacket(log); setAnalysisResult(null); setShowAnalysisDialog(false); }}
-              className={`cursor-pointer hover:bg-primary/15 transition-colors duration-150 border-b-border/30 ${selectedPacket?.id === log.id ? 'bg-primary/20' : 'odd:bg-black/10 even:bg-black/20'}`}
+              className={`cursor-pointer hover:bg-primary/25 transition-colors duration-150 border-b-border/30 ${selectedPacket?.id === log.id ? 'bg-primary/30' : 'odd:bg-transparent even:bg-black/20'}`}
             >
               <TableCell className="py-2 px-3 text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 2 })}</TableCell>
               {category === 'Network' && (
@@ -339,7 +341,7 @@ export default function TrafficStreamClient() {
                         <TerminalSquare className="h-6 w-6 mr-3 text-primary" />
                         <div>
                             <CardTitle className="text-xl text-foreground">Live Event Stream</CardTitle>
-                            <CardDescription className="text-xs">Displaying {filteredLogs.length} of {Math.min(allLogs.length, 200)} recent events. Filtered from {allLogs.length} total logs in '{activeTab}' tab.</CardDescription>
+                            <CardDescription className="text-xs text-muted-foreground">Displaying {filteredLogs.length} of {Math.min(allLogs.length, 200)} recent events. Filtered from {allLogs.length} total logs in '{activeTab}' tab.</CardDescription>
                         </div>
                     </div>
                     <TabsList className="bg-background/30 border-border/50 border">
@@ -369,7 +371,7 @@ export default function TrafficStreamClient() {
                 </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2.5 text-xs p-4 font-mono max-h-[calc(100vh-300px)] overflow-y-auto">
+          <CardContent className="space-y-2.5 text-xs p-4 font-mono max-h-[calc(100vh-300px)] overflow-y-auto bg-black/40">
             {selectedPacket ? (
               <>
                 <div className="break-all"><strong>ID:</strong> <span className="text-muted-foreground">{selectedPacket.id}</span></div>
@@ -385,21 +387,23 @@ export default function TrafficStreamClient() {
                 {selectedPacket.payloadExcerpt && (
                   <div className="pt-2">
                     <h4 className="text-xs font-semibold text-muted-foreground/80 mb-1">Payload Excerpt / Raw Data:</h4>
-                    <pre className="p-3 bg-black/70 rounded-md text-[0.65rem] leading-relaxed overflow-auto max-h-[180px] text-green-400 border border-border/50 shadow-inner">
-                      {selectedPacket.payloadExcerpt || "-- No payload data available --"}
-                    </pre>
+                    <ScrollArea className="max-h-[180px] p-3 bg-black/70 rounded-md text-[0.65rem] leading-relaxed overflow-auto text-green-400 border border-border/50 shadow-inner">
+                      <pre className="whitespace-pre-wrap">
+                        {selectedPacket.payloadExcerpt || "-- No payload data available --"}
+                      </pre>
+                    </ScrollArea>
                   </div>
                 )}
 
                 <div className="pt-3 flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" className="text-xs border-border/60 hover:bg-primary/10 hover:border-primary"><Search className="mr-1.5 h-3 w-3" /> Full Inspect</Button>
                     <Button variant="outline" size="sm" className="text-xs border-border/60 hover:bg-primary/10 hover:border-primary"><SkipForward className="mr-1.5 h-3 w-3" /> Replay Event</Button>
-                    {selectedPacket.category === 'Network' && selectedPacket.protocol && (
+                    {selectedPacket.category === 'Network' && selectedPacket.protocol && selectedPacket.sourceIp !== 'SYSTEM' && (
                         <Button 
                             variant="primary" 
                             size="sm" 
                             onClick={handleAnalyzePacket} 
-                            disabled={isAnalyzing || selectedPacket.sourceIp === 'SYSTEM'} 
+                            disabled={isAnalyzing} 
                             className="text-xs"
                         >
                         {isAnalyzing ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Brain className="mr-1.5 h-3 w-3" />}
