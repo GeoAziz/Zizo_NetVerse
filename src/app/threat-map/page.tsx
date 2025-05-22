@@ -17,7 +17,7 @@ export default function ThreatMapPage() {
         <Card className="shadow-xl">
           <CardHeader>
             <CardTitle>Interactive Threat Geo-Visualizer</CardTitle>
-            <CardDescription>This map will display real-time and historical threat data, allowing for filtering and event replay.</CardDescription>
+            <CardDescription>This map will display real-time and historical threat data, allowing for filtering by attack type, country, and event replay via a timeline slider.</CardDescription>
           </CardHeader>
           <CardContent className="h-[60vh] flex items-center justify-center bg-black/30 relative border border-border/30 rounded-md">
              <Image
@@ -34,7 +34,7 @@ export default function ThreatMapPage() {
                 Live Threat Map Coming Soon
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                (Integration of geo-mapping and threat data visualization planned)
+                (Integration of geo-mapping and threat data visualization planned, featuring attack replays and filtering capabilities)
               </p>
             </div>
           </CardContent>

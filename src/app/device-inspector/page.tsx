@@ -26,7 +26,7 @@ export default function DeviceInspectorPage() {
                 Device Inspector Interface Under Development
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                This section will provide in-depth information and actions for selected devices.
+                This section will provide in-depth information on device basics (OS, IP/MAC), activity (bandwidth, ports), threat profile (alerts, anomalies), and controls (shutdown, isolate, block).
               </p>
               <Image
                 src="https://placehold.co/600x300.png"
