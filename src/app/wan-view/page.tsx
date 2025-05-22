@@ -27,7 +27,7 @@ export default function WanViewPage() {
               layout="fill"
               objectFit="cover"
               className="opacity-40"
-              data-ai-hint="earth connections"
+              data-ai-hint="earth connections network"
             />
             <div className="z-10 text-center p-8 bg-background/80 rounded-lg shadow-2xl">
               <Globe className="h-20 w-20 text-primary mx-auto mb-4" />
@@ -35,7 +35,7 @@ export default function WanViewPage() {
                 Interactive 3D WAN Globe Coming Soon
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                (Three.js integration planned for dynamic visualization)
+                (Three.js integration planned for dynamic visualization of global traffic, device locations, and threat origins)
               </p>
             </div>
           </CardContent>
@@ -44,3 +44,4 @@ export default function WanViewPage() {
     </AppLayout>
   );
 }
+
