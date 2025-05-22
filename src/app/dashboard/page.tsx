@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Activity, AlertTriangle, BarChartHorizontalBig, Zap, Maximize, ChevronRight, Bell, Server } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { PolarAngleAxis, PolarGrid, Radar, RadarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PolarAngleAxis, PolarGrid, Radar, RadarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PolarRadiusAxis } from 'recharts';
 import AppLayout from '@/components/layout/AppLayout';
 import { NAV_LINKS, APP_NAME } from '@/lib/constants';
 import { motion } from 'framer-motion';
@@ -403,5 +403,7 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
+
+    
 
     
