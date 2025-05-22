@@ -1,16 +1,17 @@
+
 import PageHeader from '@/components/shared/PageHeader';
 import NetworkVisualizationClient from '@/components/network-visualization/NetworkVisualizationClient';
-import { Globe } from 'lucide-react';
-import AppLayout from '@/components/layout/AppLayout'; // Import AppLayout
+import { GitFork } from 'lucide-react'; // Changed icon
+import AppLayout from '@/components/layout/AppLayout';
 
 export default function NetworkVisualizationPage() {
   return (
-    <AppLayout> {/* Wrap content with AppLayout */}
+    <AppLayout>
       <div className="h-full flex flex-col">
-        <PageHeader 
-          title="3D Network Map" 
-          description="Interactive real-time visualization of network assets and traffic flows."
-          icon={Globe}
+        <PageHeader
+          title="LAN View - Internal Network Topology"
+          description="Immersive 3D visualization of local network devices, connections, and real-time status."
+          icon={GitFork} // Using GitFork as per NAV_LINKS
         />
         <NetworkVisualizationClient />
       </div>
