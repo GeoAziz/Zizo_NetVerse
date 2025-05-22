@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Activity, AlertTriangle, BarChartHorizontalBig, Zap, Maximize, ChevronRight, Bell, Server } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PolarAngleAxis, PolarGrid, Radar, RadarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import AppLayout from '@/components/layout/AppLayout';
 import { NAV_LINKS, APP_NAME } from '@/lib/constants';
 import { motion } from 'framer-motion';
@@ -21,6 +21,7 @@ const ClientSideFormattedTime: FC<{ isoTimestamp: string }> = ({ isoTimestamp })
   const [formattedTime, setFormattedTime] = useState<string | null>(null);
 
   useEffect(() => {
+    // Ensure this runs only on the client
     setFormattedTime(new Date(isoTimestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }));
   }, [isoTimestamp]);
 
@@ -98,10 +99,10 @@ export default function DashboardPage() {
   const [connectedDevices, setConnectedDevices] = useState<number | null>(null);
   const [radarChartData, setRadarChartData] = useState(initialRadarChartData);
   const [vitalsChartData, setVitalsChartData] = useState(initialVitalsChartData);
-  const [notifications, setNotifications] = useState<MockNotification[]>([]); // Initialize empty or handle differently
+  const [notifications, setNotifications] = useState<MockNotification[]>([]); 
 
   useEffect(() => {
-    // Initialize stats
+    // Initialize stats only on client
     setActiveThreats(Math.floor(Math.random() * 20) + 5);
     setPacketsIntercepted(Math.floor(Math.random() * 500000) + 1000000);
     setConnectedDevices(Math.floor(Math.random() * 100) + 50);
@@ -113,6 +114,7 @@ export default function DashboardPage() {
       { id: 'n2', title: 'High: Malware Detected', description: 'Malware signature "KryllWorm.X" detected on WKSTN-112. Quarantine pending.', timestamp: new Date(now - 15 * 60000).toISOString(), severity: 'High', read: false },
       { id: 'n3', title: 'Medium: Port Scan Detected', description: 'IP 103.45.12.98 scanned multiple ports on FW-MAIN.', timestamp: new Date(now - 45 * 60000).toISOString(), severity: 'Medium', read: true },
       { id: 'n4', title: 'Info: System Update Applied', description: 'Security patch ZN-2025-003 applied to all core servers.', timestamp: new Date(now - 2 * 3600000).toISOString(), severity: 'Info', read: true },
+      { id: 'n5', title: 'Low: Unusual Login Pattern', description: 'User "j.doe" logged in from a new geographic location.', timestamp: new Date(now - 6 * 3600000).toISOString(), severity: 'Low', read: true },
     ]);
 
 
@@ -141,7 +143,6 @@ export default function DashboardPage() {
     const vitalsInterval = setInterval(() => {
       setVitalsChartData(prevData => {
         const lastDataPoint = prevData[prevData.length - 1];
-        // Ensure lastDataPoint.name is a string before splitting
         const timeParts = typeof lastDataPoint.name === 'string' ? lastDataPoint.name.split(':') : ['0', '0'];
         const date = new Date();
         date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
@@ -273,7 +274,7 @@ export default function DashboardPage() {
                   <motion.div
                     key={item.href}
                     variants={cardVariants}
-                    custom={idx}
+                    custom={idx} // For staggered animation if visible variant takes an index
                     whileHover={{ scale: 1.03, y: -2 }}
                     whileTap={{ scale: 0.98 }}
                   >
@@ -356,13 +357,13 @@ export default function DashboardPage() {
                       <PolarGrid stroke="hsl(var(--border)/0.5)" />
                       <PolarAngleAxis dataKey="subject" tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }} />
                       <PolarRadiusAxis angle={30} domain={[0, 150]} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-                      <Radar nameKey="detected" dataKey="A" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.4)" fillOpacity={0.6} />
-                      <Radar nameKey="historical" dataKey="B" stroke="hsl(var(--accent))" fill="hsl(var(--accent)/0.3)" fillOpacity={0.5} />
+                      <Radar name="Detected Threats" dataKey="A" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.4)" fillOpacity={0.6} />
+                      <Radar name="Historical Avg" dataKey="B" stroke="hsl(var(--accent))" fill="hsl(var(--accent)/0.3)" fillOpacity={0.5} />
                       <Tooltip
                         content={<ChartTooltipContent indicator="line" />}
                         cursor={{ fill: "hsl(var(--popover)/0.3)" }}
                       />
-                      <Legend content={<ChartLegendContent />} />
+                      <ChartLegend content={<ChartLegendContent />} />
                     </RadarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -387,10 +388,10 @@ export default function DashboardPage() {
                         content={<ChartTooltipContent />}
                         cursor={{ fill: "hsl(var(--popover)/0.3)" }}
                       />
-                      <Legend content={<ChartLegendContent />} />
-                      <Line type="monotone" dataKey="cpu" nameKey="cpu" strokeWidth={2} stroke="hsl(var(--primary))" activeDot={{ r: 6, fill: "hsl(var(--primary))" }} dot={false} />
-                      <Line type="monotone" dataKey="memory" nameKey="memory" strokeWidth={2} stroke="hsl(var(--secondary))" activeDot={{ r: 6, fill: "hsl(var(--secondary))" }} dot={false}/>
-                      <Line type="monotone" dataKey="network" nameKey="network" strokeWidth={2} stroke="hsl(var(--accent))" activeDot={{ r: 6, fill: "hsl(var(--accent))" }} dot={false}/>
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Line type="monotone" dataKey="cpu" name="CPU Usage (%)" strokeWidth={2} stroke="hsl(var(--primary))" activeDot={{ r: 6, fill: "hsl(var(--primary))" }} dot={false} />
+                      <Line type="monotone" dataKey="memory" name="Memory Usage (%)" strokeWidth={2} stroke="hsl(var(--secondary))" activeDot={{ r: 6, fill: "hsl(var(--secondary))" }} dot={false}/>
+                      <Line type="monotone" dataKey="network" name="Network (Mbps)" strokeWidth={2} stroke="hsl(var(--accent))" activeDot={{ r: 6, fill: "hsl(var(--accent))" }} dot={false}/>
                     </LineChart>
                   </ResponsiveContainer>
                 </ChartContainer>
