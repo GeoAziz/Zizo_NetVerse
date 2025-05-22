@@ -1,16 +1,17 @@
+
 import PageHeader from '@/components/shared/PageHeader';
 import TrafficStreamClient from '@/components/traffic-stream/TrafficStreamClient';
-import { ListFilter } from 'lucide-react';
-import AppLayout from '@/components/layout/AppLayout'; // Import AppLayout
+import { Terminal } from 'lucide-react'; // Changed icon to Terminal
+import AppLayout from '@/components/layout/AppLayout';
 
 export default function TrafficStreamPage() {
   return (
-    <AppLayout> {/* Wrap content with AppLayout */}
+    <AppLayout>
       <div>
         <PageHeader 
-          title="Live Traffic Stream" 
-          description="Intercept, view, filter, and analyze network packets in real-time."
-          icon={ListFilter}
+          title="System Logs & Live Terminal" // Updated title
+          description="Real-time system activity, network logs, and AI analysis." // Updated description
+          icon={Terminal} // Updated icon
         />
         <TrafficStreamClient />
       </div>
