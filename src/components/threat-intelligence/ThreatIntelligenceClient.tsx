@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Bug, Fish, ShieldOff, DatabaseZap, TerminalSquare, AlertOctagon, type LucideIcon } from 'lucide-react';
 import { generateThreatIntel, type GenerateThreatIntelInput, type ThreatIntelEntry } from '@/ai/flows/generate-threat-intel-flow';
 import { useToast } from '@/hooks/use-toast';
+import { motion } from 'framer-motion';
 
 const threatTypeToIconMap: Record<ThreatIntelEntry['type'], LucideIcon | undefined> = {
   Malware: Bug,
@@ -18,6 +19,31 @@ const threatTypeToIconMap: Record<ThreatIntelEntry['type'], LucideIcon | undefin
   SQLi: DatabaseZap,
   RCE: TerminalSquare,
   'Zero-day': AlertOctagon,
+};
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 260,
+      damping: 20,
+    },
+  },
 };
 
 export default function ThreatIntelligenceClient() {
@@ -78,9 +104,9 @@ export default function ThreatIntelligenceClient() {
       <Card className="shadow-md">
         <CardContent className="p-4 flex flex-wrap gap-4 items-center justify-between">
           <div className="flex flex-wrap gap-4 items-center flex-grow">
-            <Input 
-              placeholder="Search threats..." 
-              value={searchTerm} 
+            <Input
+              placeholder="Search threats..."
+              value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-xs flex-grow bg-input border-border focus:ring-primary"
             />
@@ -122,11 +148,16 @@ export default function ThreatIntelligenceClient() {
           <p className="mt-4 text-muted-foreground">Generating threat intelligence feed...</p>
         </div>
       ) : filteredThreats.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredThreats.map((threat) => (
-            <ThreatCard key={threat.id} threat={threat} />
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {filteredThreats.map((threat, index) => (
+            <ThreatCard key={threat.id} threat={threat} variants={cardVariants} custom={index} />
           ))}
-        </div>
+        </motion.div>
       ) : (
         <div className="text-center py-10">
           <p className="text-xl text-muted-foreground">No threats match your criteria or an error occurred.</p>
