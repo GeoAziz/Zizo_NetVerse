@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import Link from 'next/link';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,18 @@ import { NAV_LINKS, APP_NAME } from '@/lib/constants';
 import { motion } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+
+// Helper component for client-side time formatting
+const ClientSideFormattedTime: FC<{ isoTimestamp: string }> = ({ isoTimestamp }) => {
+  const [formattedTime, setFormattedTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFormattedTime(new Date(isoTimestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }));
+  }, [isoTimestamp]);
+
+  return <>{formattedTime || '...'}</>;
+};
+
 
 const initialRadarChartData = [
   { subject: 'Malware', A: 120, B: 110, fullMark: 150 },
@@ -66,11 +78,12 @@ type MockNotification = {
   id: string;
   title: string;
   description: string;
-  timestamp: string;
+  timestamp: string; // Store as ISO string
   severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Info';
   read: boolean;
 };
 
+// Initialize with ISO strings for timestamps
 const initialNotifications: MockNotification[] = [
   { id: 'n1', title: 'Critical Alert: Data Breach Attempt', description: 'Suspicious outbound connection from SRV-03 to known C2 server blocked.', timestamp: new Date(Date.now() - 5 * 60000).toISOString(), severity: 'Critical', read: false },
   { id: 'n2', title: 'High: Malware Detected', description: 'Malware signature "KryllWorm.X" detected on WKSTN-112. Quarantine pending.', timestamp: new Date(Date.now() - 15 * 60000).toISOString(), severity: 'High', read: false },
@@ -85,12 +98,23 @@ export default function DashboardPage() {
   const [connectedDevices, setConnectedDevices] = useState<number | null>(null);
   const [radarChartData, setRadarChartData] = useState(initialRadarChartData);
   const [vitalsChartData, setVitalsChartData] = useState(initialVitalsChartData);
-  const [notifications, setNotifications] = useState<MockNotification[]>(initialNotifications);
+  const [notifications, setNotifications] = useState<MockNotification[]>([]); // Initialize empty or handle differently
 
   useEffect(() => {
+    // Initialize stats
     setActiveThreats(Math.floor(Math.random() * 20) + 5);
     setPacketsIntercepted(Math.floor(Math.random() * 500000) + 1000000);
     setConnectedDevices(Math.floor(Math.random() * 100) + 50);
+
+    // Client-side initialization of notifications
+    const now = Date.now();
+    setNotifications([
+      { id: 'n1', title: 'Critical Alert: Data Breach Attempt', description: 'Suspicious outbound connection from SRV-03 to known C2 server blocked.', timestamp: new Date(now - 5 * 60000).toISOString(), severity: 'Critical', read: false },
+      { id: 'n2', title: 'High: Malware Detected', description: 'Malware signature "KryllWorm.X" detected on WKSTN-112. Quarantine pending.', timestamp: new Date(now - 15 * 60000).toISOString(), severity: 'High', read: false },
+      { id: 'n3', title: 'Medium: Port Scan Detected', description: 'IP 103.45.12.98 scanned multiple ports on FW-MAIN.', timestamp: new Date(now - 45 * 60000).toISOString(), severity: 'Medium', read: true },
+      { id: 'n4', title: 'Info: System Update Applied', description: 'Security patch ZN-2025-003 applied to all core servers.', timestamp: new Date(now - 2 * 3600000).toISOString(), severity: 'Info', read: true },
+    ]);
+
 
     const threatInterval = setInterval(() => {
       setActiveThreats(prev => prev !== null ? Math.max(0, prev + Math.floor(Math.random() * 6) - 3) : Math.floor(Math.random() * 20) + 5);
@@ -117,7 +141,8 @@ export default function DashboardPage() {
     const vitalsInterval = setInterval(() => {
       setVitalsChartData(prevData => {
         const lastDataPoint = prevData[prevData.length - 1];
-        const timeParts = lastDataPoint.name.split(':');
+        // Ensure lastDataPoint.name is a string before splitting
+        const timeParts = typeof lastDataPoint.name === 'string' ? lastDataPoint.name.split(':') : ['0', '0'];
         const date = new Date();
         date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
 
@@ -155,8 +180,8 @@ export default function DashboardPage() {
   const getSeverityBadgeVariant = (severity: MockNotification['severity']) => {
     switch (severity) {
       case 'Critical': return 'destructive';
-      case 'High': return 'destructive'; // Or a custom orange
-      case 'Medium': return 'secondary'; // Or a custom yellow
+      case 'High': return 'destructive'; 
+      case 'Medium': return 'secondary'; 
       case 'Low': return 'outline';
       default: return 'default';
     }
@@ -173,7 +198,7 @@ export default function DashboardPage() {
         />
 
         <motion.div
-          className="grid gap-6 md:grid-cols-2 lg:grid-cols-4" // Added one more column for new card
+          className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
           initial="hidden"
           animate="visible"
           variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
@@ -284,7 +309,7 @@ export default function DashboardPage() {
                 <CardDescription>Recent system alerts and updates.</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow p-0">
-                <ScrollArea className="h-[300px] lg:h-full max-h-[calc(100%-4rem)] px-4 pb-4"> {/* Adjust height as needed */}
+                <ScrollArea className="h-[300px] lg:h-full max-h-[calc(100%-4rem)] px-4 pb-4">
                   {notifications.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">No new notifications.</p>
                   ) : (
@@ -302,7 +327,9 @@ export default function DashboardPage() {
                             <Badge variant={getSeverityBadgeVariant(notif.severity)} className="text-xs">{notif.severity}</Badge>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notif.description}</p>
-                          <p className="text-xs text-muted-foreground/70 mt-1.5">{new Date(notif.timestamp).toLocaleTimeString()}</p>
+                          <p className="text-xs text-muted-foreground/70 mt-1.5">
+                            <ClientSideFormattedTime isoTimestamp={notif.timestamp} />
+                          </p>
                         </motion.div>
                       ))}
                     </div>
@@ -375,3 +402,5 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
+
+    
