@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, SkipForward, Search, Download, Eye, Brain, Loader2, TerminalSquare, ChevronRight } from 'lucide-react';
+import { Play, Pause, SkipForward, Search, Download, Eye, Brain, Loader2, TerminalSquare, ChevronRight, Network, AlertCircle, ShieldCheck, BookUser } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
@@ -20,78 +20,73 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeTrafficPacket, type AnalyzeTrafficPacketInput, type AnalyzeTrafficPacketOutput } from '@/ai/flows/analyze-traffic-packet-flow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+type LogCategory = 'Network' | 'System' | 'Alerts' | 'Audit';
+
 type TrafficLog = {
   id: string;
   timestamp: string;
-  protocol: 'HTTP' | 'HTTPS' | 'TCP' | 'WebSocket' | 'DNS' | 'FTP' | 'SSH' | 'NTP'; // Added SSH, NTP
-  sourceIp: string;
-  sourcePort: number;
-  destIp: string;
-  destPort: number;
-  length: number;
+  category: LogCategory;
+  protocol?: 'HTTP' | 'HTTPS' | 'TCP' | 'WebSocket' | 'DNS' | 'FTP' | 'SSH' | 'NTP'; 
+  sourceIp?: string;
+  sourcePort?: number;
+  destIp?: string;
+  destPort?: number;
+  length?: number;
   summary: string;
-  action: 'Allowed' | 'Blocked' | 'Modified' | 'Flagged' | 'Logged'; // Added Logged
+  action?: 'Allowed' | 'Blocked' | 'Modified' | 'Flagged' | 'Logged' | 'System Event' | 'User Action' | 'Security Alert';
   payloadExcerpt?: string; 
 };
 
-const generateMockData = (count: number): TrafficLog[] => {
-  const protocols: Array<TrafficLog['protocol']> = ['HTTP', 'HTTPS', 'TCP', 'WebSocket', 'DNS', 'FTP', 'SSH', 'NTP'];
-  const actions: Array<TrafficLog['action']> = ['Allowed', 'Blocked', 'Modified', 'Flagged', 'Logged'];
-  const commonDestPorts: { [key in TrafficLog['protocol']]?: number[] } = {
-    HTTP: [80, 8080],
-    HTTPS: [443],
-    DNS: [53],
-    FTP: [20, 21],
-    SSH: [22],
-    NTP: [123],
+const generateMockData = (count: number, category: LogCategory): TrafficLog[] => {
+  const protocols: Array<NonNullable<TrafficLog['protocol']>> = ['HTTP', 'HTTPS', 'TCP', 'WebSocket', 'DNS', 'FTP', 'SSH', 'NTP'];
+  const networkActions: Array<NonNullable<TrafficLog['action']>> = ['Allowed', 'Blocked', 'Modified', 'Flagged', 'Logged'];
+  const systemSummaries = ["System boot initiated.", "Service 'nginx' started successfully.", "CPU usage exceeded 90% threshold.", "Disk space low on /var/log.", "User 'zizo_admin' logged in."];
+  const alertSummaries = ["Critical: Brute force attempt detected on SSH.", "High: Known malware signature found in HTTP stream.", "Medium: Unusual outbound connection from 10.1.1.50.", "Low: Repeated login failures for user 'guest'."];
+  const auditSummaries = ["User 'devmahnx' accessed /api/config.", "Firewall rule #1023 updated by 'zizo_admin'.", "System settings changed: NTP server updated.", "Security policy 'CorpNet-v2' applied."];
+  
+  const commonDestPorts: { [key in NonNullable<TrafficLog['protocol']>]?: number[] } = {
+    HTTP: [80, 8080], HTTPS: [443], DNS: [53], FTP: [20, 21], SSH: [22], NTP: [123],
   };
-  const summaries = [
-    "GET /api/users HTTP/1.1", "POST /auth/login HTTP/1.1", "WebSocket Handshake Request", "TCP SYN_ACK Segment",
-    "PUT /data/update?id=123 HTTP/1.1", "DELETE /resource/id HTTP/1.1", "TLSv1.3 ClientHello", "WebSocket Binary Frame",
-    "DNS Standard query A example.com", "FTP PORT command", "SSH-2.0-OpenSSH_8.2p1", "NTP Version 4, client",
-    "User login attempt: 'admin'", "Firewall rule updated: DENY TCP from any to 10.0.1.5:8080", "System health check: OK"
-  ];
-  const payloadSamples = [
-    "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
-    "{'username': 'sys_admin', 'password': 'redacted_for_security'}",
-    "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
-    "Flags: [S.], seq 4294967295, win 65535, options [mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 7], length 0",
-    "Content-Type: application/json; charset=utf-8. Payload: {\"status\":\"success\", \"id\":123}",
-    "Resource /resource/id deleted successfully by user 'operator01'",
-    "Cipher Suites: TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256",
-    "0x81 0x05 0x48 0x65 0x6c 0x6c 0x6f", // Binary data example
-    "example.com. IN A ? Addr: 93.184.216.34 (RCODE: NoError)",
-    "227 Entering Passive Mode (192,168,1,100,10,20). File: /data/archive.zip",
-    "SSH Key Exchange Init: curve25519-sha256, GSSAPI (Kerberos V5)",
-    "Leap: 0, Version: 4, Mode: Client, Stratum: 2, Poll: 10, Precision: -23"
-  ];
 
   return Array.from({ length: count }, (_, i) => {
     const now = new Date();
     now.setSeconds(now.getSeconds() - i * (Math.floor(Math.random() * 3) + 1));
-    const protocol = protocols[i % protocols.length];
-    const destPortOptions = commonDestPorts[protocol] || [Math.floor(Math.random() * 64511) + 1024];
-    const destPort = destPortOptions[Math.floor(Math.random() * destPortOptions.length)];
-
-    return {
-      id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${i}`,
+    
+    let log: Partial<TrafficLog> = {
+      id: `log-${category}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${i}`,
       timestamp: now.toISOString(),
-      protocol: protocol,
-      sourceIp: i % 4 === 0 ? 'SYSTEM' : `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`,
-      sourcePort: i % 4 === 0 ? 0 : Math.floor(Math.random() * 64511) + 1024,
-      destIp: i % 3 === 0 ? `172.16.${Math.floor(Math.random()*32)}.${Math.floor(Math.random()*254)+1}` : `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`,
-      destPort: destPort,
-      length: Math.floor(Math.random() * 1400) + (protocol === 'TCP' ? 20 : 40),
-      summary: summaries[i % summaries.length] + (Math.random() > 0.8 ? " - POTENTIAL_IOC" : ""),
-      action: actions[i % actions.length],
-      payloadExcerpt: payloadSamples[i % payloadSamples.length],
+      category: category,
     };
+
+    if (category === 'Network') {
+      const protocol = protocols[i % protocols.length];
+      const destPortOptions = commonDestPorts[protocol] || [Math.floor(Math.random() * 64511) + 1024];
+      log = {
+        ...log,
+        protocol,
+        sourceIp: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`,
+        sourcePort: Math.floor(Math.random() * 64511) + 1024,
+        destIp: i % 3 === 0 ? `172.16.${Math.floor(Math.random()*32)}.${Math.floor(Math.random()*254)+1}` : `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`,
+        destPort: destPortOptions[Math.floor(Math.random() * destPortOptions.length)],
+        length: Math.floor(Math.random() * 1400) + (protocol === 'TCP' ? 20 : 40),
+        summary: `Packet transfer ${protocol} ${log.sourceIp} -> ${log.destIp}`,
+        action: networkActions[i % networkActions.length],
+        payloadExcerpt: "User-Agent: ZizoNetVerse-Client/1.0",
+      };
+    } else if (category === 'System') {
+      log = { ...log, summary: systemSummaries[i % systemSummaries.length], action: 'System Event' };
+    } else if (category === 'Alerts') {
+      log = { ...log, summary: alertSummaries[i % alertSummaries.length], action: 'Security Alert' };
+    } else if (category === 'Audit') {
+      log = { ...log, summary: auditSummaries[i % auditSummaries.length], action: 'User Action' };
+    }
+    return log as TrafficLog;
   });
 };
 
@@ -106,36 +101,47 @@ export default function TrafficStreamClient() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalyzeTrafficPacketOutput | null>(null);
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState<LogCategory>('Network');
   const { toast } = useToast();
 
+  const fetchMockData = useCallback((category: LogCategory) => {
+    return generateMockData(75, category);
+  }, []);
+  
   useEffect(() => {
-    setAllLogs(generateMockData(75)); 
+    setAllLogs(fetchMockData(activeTab));
+  }, [activeTab, fetchMockData]);
 
+  useEffect(() => {
     let intervalId: NodeJS.Timeout;
     if (isStreaming) {
       intervalId = setInterval(() => {
         setAllLogs(prevLogs => [
-          ...generateMockData(Math.floor(Math.random() * 4) + 2).map(log => ({...log, timestamp: new Date().toISOString()})),
+          ...generateMockData(Math.floor(Math.random() * 2) + 1, activeTab).map(log => ({...log, timestamp: new Date().toISOString()})),
           ...prevLogs,
         ].slice(0, 200)); 
-      }, 1200); 
+      }, 1500); 
     }
     return () => clearInterval(intervalId);
-  }, [isStreaming]);
+  }, [isStreaming, activeTab]);
 
   const filteredLogs = useMemo(() => {
     return allLogs.filter(log =>
+      log.category === activeTab &&
       (log.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       log.sourceIp.includes(searchTerm) ||
-       log.destIp.includes(searchTerm) ||
-       log.protocol.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (protocolFilter === 'all' || log.protocol === protocolFilter) &&
-      (actionFilter === 'all' || log.action === actionFilter)
+       (log.sourceIp && log.sourceIp.includes(searchTerm)) ||
+       (log.destIp && log.destIp.includes(searchTerm)) ||
+       (log.protocol && log.protocol.toLowerCase().includes(searchTerm.toLowerCase()))) &&
+      (protocolFilter === 'all' || !log.protocol || log.protocol === protocolFilter) &&
+      (actionFilter === 'all' || !log.action || log.action === actionFilter)
     ).slice(0, 75); 
-  }, [allLogs, searchTerm, protocolFilter, actionFilter]);
+  }, [allLogs, searchTerm, protocolFilter, actionFilter, activeTab]);
 
   const handleAnalyzePacket = async () => {
-    if (!selectedPacket) return;
+    if (!selectedPacket || !selectedPacket.protocol || selectedPacket.sourceIp === 'SYSTEM' || !selectedPacket.sourcePort || !selectedPacket.destIp || !selectedPacket.destPort || !selectedPacket.action) {
+        toast({ title: "AI Analysis Unavailable", description: "Selected log is not suitable for network packet analysis.", variant: "default" });
+        return;
+    }
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setShowAnalysisDialog(true);
@@ -166,6 +172,7 @@ export default function TrafficStreamClient() {
   };
 
   const getProtocolBadgeClassName = (protocol: TrafficLog['protocol']) => {
+     // ... (keep existing badge logic)
      switch (protocol) {
       case 'HTTPS': return 'bg-green-500/20 text-green-300 border-green-500/50 hover:bg-green-500/30';
       case 'HTTP': return 'bg-blue-500/20 text-blue-300 border-blue-500/50 hover:bg-blue-500/30';
@@ -180,17 +187,22 @@ export default function TrafficStreamClient() {
   }
 
   const getActionBadgeClassName = (action: TrafficLog['action']) => {
+     // ... (keep existing badge logic)
      switch (action) {
       case 'Blocked': return 'bg-red-600/80 text-red-100 border-red-500/90 hover:bg-red-700/80';
       case 'Modified': return 'bg-yellow-500/80 text-yellow-950 border-yellow-600/70 hover:bg-yellow-600/80';
       case 'Flagged': return 'bg-orange-600/80 text-orange-100 border-orange-500/70 hover:bg-orange-700/80';
       case 'Allowed': return 'bg-green-600/70 text-green-100 border-green-500/80 hover:bg-green-700/70';
       case 'Logged': return 'bg-sky-600/70 text-sky-100 border-sky-500/80 hover:bg-sky-700/70';
+      case 'System Event': return 'bg-indigo-500/70 text-indigo-100 border-indigo-400/80 hover:bg-indigo-600/70';
+      case 'User Action': return 'bg-purple-500/70 text-purple-100 border-purple-400/80 hover:bg-purple-600/70';
+      case 'Security Alert': return 'bg-pink-600/80 text-pink-100 border-pink-500/80 hover:bg-pink-700/80';
       default: return 'bg-slate-500/70 text-slate-100 border-slate-400/60 hover:bg-slate-600/70';
     }
   }
 
   const getSeverityBadgeClass = (severity: AnalyzeTrafficPacketOutput['severity'] | undefined) => {
+    // ... (keep existing badge logic)
     if (!severity) return 'bg-slate-600/30 text-slate-200 border-slate-500/60';
     switch (severity) {
         case 'Critical': return 'bg-red-700 text-red-100 border-red-600';
@@ -201,6 +213,54 @@ export default function TrafficStreamClient() {
         default: return 'bg-gray-500 text-gray-100 border-gray-400';
     }
   };
+  
+  const renderLogTable = (category: LogCategory) => (
+    <ScrollArea className="h-[calc(100vh-480px)] lg:h-[calc(100vh-440px)]">
+      <Table>
+        <TableHeader className="sticky top-0 bg-card/90 backdrop-blur-sm z-10">
+          <TableRow className="border-b-border/50">
+            <TableHead className="w-[90px] text-muted-foreground/80 text-xs">Timestamp</TableHead>
+            {category === 'Network' && <TableHead className="w-[90px] text-muted-foreground/80 text-xs">Protocol</TableHead>}
+            {category === 'Network' && <TableHead className="w-[170px] text-muted-foreground/80 text-xs">Source</TableHead>}
+            {category === 'Network' && <TableHead className="w-[170px] text-muted-foreground/80 text-xs">Destination</TableHead>}
+            {category === 'Network' && <TableHead className="w-[70px] text-muted-foreground/80 text-xs">Length</TableHead>}
+            <TableHead className="text-muted-foreground/80 text-xs">Summary</TableHead>
+            <TableHead className="w-[110px] text-right text-muted-foreground/80 text-xs">Action/Type</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="font-mono text-xs">
+          {filteredLogs.filter(log => log.category === category).map((log) => (
+            <TableRow
+              key={log.id}
+              onClick={() => { setSelectedPacket(log); setAnalysisResult(null); setShowAnalysisDialog(false); }}
+              className={`cursor-pointer hover:bg-primary/15 transition-colors duration-150 border-b-border/30 ${selectedPacket?.id === log.id ? 'bg-primary/20' : 'odd:bg-black/10 even:bg-black/20'}`}
+            >
+              <TableCell className="py-2 px-3 text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 2 })}</TableCell>
+              {category === 'Network' && (
+                <>
+                  <TableCell className="py-2 px-3">
+                    {log.protocol && <Badge variant={"outline"} className={cn('text-[0.7rem] py-0.5 px-1.5 border', getProtocolBadgeClassName(log.protocol))}>{log.protocol}</Badge>}
+                  </TableCell>
+                  <TableCell className="py-2 px-3 text-sky-300">{log.sourceIp}{log.sourcePort !==0 ? `:${log.sourcePort}` : ''}</TableCell>
+                  <TableCell className="py-2 px-3 text-lime-300">{log.destIp}{log.destIp && log.destPort ? `:${log.destPort}`: ''}</TableCell>
+                  <TableCell className="py-2 px-3 text-amber-300">{log.length ? `${log.length} B` : '-'}</TableCell>
+                </>
+              )}
+              <TableCell className="py-2 px-3 text-foreground/80 max-w-[200px] md:max-w-[300px] truncate" title={log.summary}>{log.summary}</TableCell>
+              <TableCell className="py-2 px-3 text-right">
+                 {log.action && <Badge variant={"outline"} className={cn('text-[0.7rem] py-0.5 px-1.5 border', getActionBadgeClassName(log.action))}>{log.action}</Badge>}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {filteredLogs.filter(log => log.category === category).length === 0 && (
+          <div className="text-center py-10 text-muted-foreground font-mono">
+            -- No {category.toLowerCase()} events match current filters --
+          </div>
+        )}
+    </ScrollArea>
+  );
 
   return (
     <div className="space-y-6">
@@ -209,7 +269,7 @@ export default function TrafficStreamClient() {
           <CardTitle className="text-lg text-accent">Stream Filters & Controls</CardTitle>
           <div className="flex flex-wrap gap-4 items-end pt-3">
             <div className="flex-grow min-w-[200px] sm:min-w-[250px]">
-              <Label htmlFor="search" className="block text-xs font-medium text-muted-foreground mb-1">Search Log Stream</Label>
+              <Label htmlFor="search" className="block text-xs font-medium text-muted-foreground mb-1">Search Current Log Tab</Label>
               <Input
                 id="search"
                 placeholder="IP, protocol, summary..."
@@ -218,41 +278,45 @@ export default function TrafficStreamClient() {
                 className="bg-input/80 border-border/70 focus:ring-primary placeholder:text-muted-foreground/70"
               />
             </div>
-            <div>
-              <Label htmlFor="protocol" className="block text-xs font-medium text-muted-foreground mb-1">Protocol</Label>
-              <Select value={protocolFilter} onValueChange={setProtocolFilter}>
-                <SelectTrigger className="w-full sm:w-[160px] bg-input/80 border-border/70 focus:ring-primary">
-                  <SelectValue placeholder="Protocol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Protocols</SelectItem>
-                  <SelectItem value="HTTP">HTTP</SelectItem>
-                  <SelectItem value="HTTPS">HTTPS</SelectItem>
-                  <SelectItem value="TCP">TCP</SelectItem>
-                  <SelectItem value="WebSocket">WebSocket</SelectItem>
-                  <SelectItem value="DNS">DNS</SelectItem>
-                  <SelectItem value="FTP">FTP</SelectItem>
-                  <SelectItem value="SSH">SSH</SelectItem>
-                  <SelectItem value="NTP">NTP</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-             <div>
-              <Label htmlFor="action" className="block text-xs font-medium text-muted-foreground mb-1">Action</Label>
-              <Select value={actionFilter} onValueChange={setActionFilter}>
-                <SelectTrigger className="w-full sm:w-[160px] bg-input/80 border-border/70 focus:ring-primary">
-                  <SelectValue placeholder="Action" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Actions</SelectItem>
-                  <SelectItem value="Allowed">Allowed</SelectItem>
-                  <SelectItem value="Blocked">Blocked</SelectItem>
-                  <SelectItem value="Modified">Modified</SelectItem>
-                  <SelectItem value="Flagged">Flagged</SelectItem>
-                  <SelectItem value="Logged">Logged</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {activeTab === 'Network' && (
+              <>
+                <div>
+                  <Label htmlFor="protocol" className="block text-xs font-medium text-muted-foreground mb-1">Protocol</Label>
+                  <Select value={protocolFilter} onValueChange={setProtocolFilter}>
+                    <SelectTrigger className="w-full sm:w-[160px] bg-input/80 border-border/70 focus:ring-primary">
+                      <SelectValue placeholder="Protocol" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Protocols</SelectItem>
+                      <SelectItem value="HTTP">HTTP</SelectItem>
+                      <SelectItem value="HTTPS">HTTPS</SelectItem>
+                      <SelectItem value="TCP">TCP</SelectItem>
+                      <SelectItem value="WebSocket">WebSocket</SelectItem>
+                      <SelectItem value="DNS">DNS</SelectItem>
+                      <SelectItem value="FTP">FTP</SelectItem>
+                      <SelectItem value="SSH">SSH</SelectItem>
+                      <SelectItem value="NTP">NTP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="action" className="block text-xs font-medium text-muted-foreground mb-1">Action</Label>
+                  <Select value={actionFilter} onValueChange={setActionFilter}>
+                    <SelectTrigger className="w-full sm:w-[160px] bg-input/80 border-border/70 focus:ring-primary">
+                      <SelectValue placeholder="Action" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Actions</SelectItem>
+                      <SelectItem value="Allowed">Allowed</SelectItem>
+                      <SelectItem value="Blocked">Blocked</SelectItem>
+                      <SelectItem value="Modified">Modified</SelectItem>
+                      <SelectItem value="Flagged">Flagged</SelectItem>
+                      <SelectItem value="Logged">Logged</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={() => setIsStreaming(!isStreaming)} className="h-10 border-border/70 hover:bg-primary/10 hover:border-primary">
                 {isStreaming ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
@@ -268,72 +332,31 @@ export default function TrafficStreamClient() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <Card className="xl:col-span-2 shadow-xl border-border/50 bg-card/90 backdrop-blur-md">
-          <CardHeader className="border-b border-border/30 pb-3">
-            <div className="flex items-center">
-                <TerminalSquare className="h-6 w-6 mr-3 text-primary" />
-                <div>
-                    <CardTitle className="text-xl text-foreground">Live Event Stream</CardTitle>
-                    <CardDescription className="text-xs">Displaying {filteredLogs.length} of {Math.min(allLogs.length, 200)} recent events. Filtered from {allLogs.length} total logs.</CardDescription>
+          <Tabs defaultValue="Network" onValueChange={(value) => setActiveTab(value as LogCategory)} className="w-full">
+            <CardHeader className="border-b border-border/30 pb-0">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                        <TerminalSquare className="h-6 w-6 mr-3 text-primary" />
+                        <div>
+                            <CardTitle className="text-xl text-foreground">Live Event Stream</CardTitle>
+                            <CardDescription className="text-xs">Displaying {filteredLogs.length} of {Math.min(allLogs.length, 200)} recent events. Filtered from {allLogs.length} total logs in '{activeTab}' tab.</CardDescription>
+                        </div>
+                    </div>
+                    <TabsList className="bg-background/30 border-border/50 border">
+                        <TabsTrigger value="Network"><Network className="mr-2 h-4 w-4"/>Network</TabsTrigger>
+                        <TabsTrigger value="System"><Terminal className="mr-2 h-4 w-4"/>System</TabsTrigger>
+                        <TabsTrigger value="Alerts"><AlertCircle className="mr-2 h-4 w-4"/>Alerts</TabsTrigger>
+                        <TabsTrigger value="Audit"><BookUser className="mr-2 h-4 w-4"/>Audit</TabsTrigger>
+                    </TabsList>
                 </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[calc(100vh-420px)] lg:h-[calc(100vh-380px)]">
-              <Table>
-                <TableHeader className="sticky top-0 bg-card/80 backdrop-blur-sm z-10">
-                  <TableRow className="border-b-border/50">
-                    <TableHead className="w-[90px] text-muted-foreground/80 text-xs">Timestamp</TableHead>
-                    <TableHead className="w-[90px] text-muted-foreground/80 text-xs">Protocol</TableHead>
-                    <TableHead className="w-[170px] text-muted-foreground/80 text-xs">Source</TableHead>
-                    <TableHead className="w-[170px] text-muted-foreground/80 text-xs">Destination</TableHead>
-                    <TableHead className="w-[70px] text-muted-foreground/80 text-xs">Length</TableHead>
-                    <TableHead className="text-muted-foreground/80 text-xs">Summary</TableHead>
-                    <TableHead className="w-[90px] text-right text-muted-foreground/80 text-xs">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="font-mono text-xs">
-                  {filteredLogs.map((log) => (
-                    <TableRow
-                      key={log.id}
-                      onClick={() => {
-                          setSelectedPacket(log);
-                          setAnalysisResult(null); 
-                          setShowAnalysisDialog(false); 
-                      }}
-                      className={`cursor-pointer hover:bg-primary/15 transition-colors duration-150 border-b-border/30 ${selectedPacket?.id === log.id ? 'bg-primary/20' : 'odd:bg-black/10 even:bg-black/20'}`}
-                    >
-                      <TableCell className="py-2 px-3 text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 2 })}</TableCell>
-                      <TableCell className="py-2 px-3">
-                        <Badge
-                          variant={"outline"}
-                          className={cn('text-[0.7rem] py-0.5 px-1.5 border', getProtocolBadgeClassName(log.protocol))}
-                        >
-                          {log.protocol}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-2 px-3 text-sky-300">{log.sourceIp}{log.sourcePort !==0 ? `:${log.sourcePort}` : ''}</TableCell>
-                      <TableCell className="py-2 px-3 text-lime-300">{log.destIp}:{log.destPort}</TableCell>
-                      <TableCell className="py-2 px-3 text-amber-300">{log.length} B</TableCell>
-                      <TableCell className="py-2 px-3 text-foreground/80 max-w-[200px] truncate" title={log.summary}>{log.summary}</TableCell>
-                      <TableCell className="py-2 px-3 text-right">
-                         <Badge
-                           variant={"outline"}
-                           className={cn('text-[0.7rem] py-0.5 px-1.5 border', getActionBadgeClassName(log.action))}
-                         >
-                          {log.action}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-             {filteredLogs.length === 0 && (
-                <div className="text-center py-10 text-muted-foreground font-mono">
-                  -- No events match current filters --
-                </div>
-              )}
-          </CardContent>
+            </CardHeader>
+            <CardContent className="p-0">
+              <TabsContent value="Network" className="m-0">{renderLogTable('Network')}</TabsContent>
+              <TabsContent value="System" className="m-0">{renderLogTable('System')}</TabsContent>
+              <TabsContent value="Alerts" className="m-0">{renderLogTable('Alerts')}</TabsContent>
+              <TabsContent value="Audit" className="m-0">{renderLogTable('Audit')}</TabsContent>
+            </CardContent>
+          </Tabs>
         </Card>
 
         <Card className="xl:col-span-1 shadow-xl border-border/50 bg-card/90 backdrop-blur-md h-fit sticky top-24">
@@ -351,33 +374,38 @@ export default function TrafficStreamClient() {
               <>
                 <div className="break-all"><strong>ID:</strong> <span className="text-muted-foreground">{selectedPacket.id}</span></div>
                 <div><strong>Timestamp:</strong> <span className="text-muted-foreground">{new Date(selectedPacket.timestamp).toLocaleString()}</span></div>
-                <div><strong>Protocol:</strong> <Badge variant={"outline"} className={cn('ml-1 text-[0.7rem]', getProtocolBadgeClassName(selectedPacket.protocol))}>{selectedPacket.protocol}</Badge></div>
-                <div><strong>Source:</strong> <span className="text-sky-300">{selectedPacket.sourceIp}{selectedPacket.sourcePort !== 0 ? `:${selectedPacket.sourcePort}` : ''}</span></div>
-                <div><strong>Destination:</strong> <span className="text-lime-300">{selectedPacket.destIp}:{selectedPacket.destPort}</span></div>
-                <div><strong>Length:</strong> <span className="text-amber-300">{selectedPacket.length} Bytes</span></div>
+                <div><strong>Category:</strong> <span className="text-muted-foreground">{selectedPacket.category}</span></div>
+                {selectedPacket.protocol && <div><strong>Protocol:</strong> <Badge variant={"outline"} className={cn('ml-1 text-[0.7rem]', getProtocolBadgeClassName(selectedPacket.protocol))}>{selectedPacket.protocol}</Badge></div>}
+                {selectedPacket.sourceIp && <div><strong>Source:</strong> <span className="text-sky-300">{selectedPacket.sourceIp}{selectedPacket.sourcePort && selectedPacket.sourcePort !== 0 ? `:${selectedPacket.sourcePort}` : ''}</span></div>}
+                {selectedPacket.destIp && <div><strong>Destination:</strong> <span className="text-lime-300">{selectedPacket.destIp}{selectedPacket.destPort ? `:${selectedPacket.destPort}`: ''}</span></div>}
+                {selectedPacket.length && <div><strong>Length:</strong> <span className="text-amber-300">{selectedPacket.length} Bytes</span></div>}
                 <div className="break-words"><strong>Summary:</strong> <span className="text-foreground/90">{selectedPacket.summary}</span></div>
-                <div><strong>Action:</strong> <Badge variant={"outline"} className={cn('ml-1 text-[0.7rem]', getActionBadgeClassName(selectedPacket.action))}>{selectedPacket.action}</Badge></div>
+                {selectedPacket.action && <div><strong>Action/Type:</strong> <Badge variant={"outline"} className={cn('ml-1 text-[0.7rem]', getActionBadgeClassName(selectedPacket.action))}>{selectedPacket.action}</Badge></div>}
 
-                <div className="pt-2">
-                  <h4 className="text-xs font-semibold text-muted-foreground/80 mb-1">Payload Excerpt / Raw Data:</h4>
-                  <pre className="p-3 bg-black/70 rounded-md text-[0.65rem] leading-relaxed overflow-auto max-h-[180px] text-green-400 border border-border/50 shadow-inner">
-                    {selectedPacket.payloadExcerpt || "-- No payload data available --"}
-                  </pre>
-                </div>
+                {selectedPacket.payloadExcerpt && (
+                  <div className="pt-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground/80 mb-1">Payload Excerpt / Raw Data:</h4>
+                    <pre className="p-3 bg-black/70 rounded-md text-[0.65rem] leading-relaxed overflow-auto max-h-[180px] text-green-400 border border-border/50 shadow-inner">
+                      {selectedPacket.payloadExcerpt || "-- No payload data available --"}
+                    </pre>
+                  </div>
+                )}
 
                 <div className="pt-3 flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" className="text-xs border-border/60 hover:bg-primary/10 hover:border-primary"><Search className="mr-1.5 h-3 w-3" /> Full Inspect</Button>
                     <Button variant="outline" size="sm" className="text-xs border-border/60 hover:bg-primary/10 hover:border-primary"><SkipForward className="mr-1.5 h-3 w-3" /> Replay Event</Button>
-                    <Button 
-                        variant="primary" 
-                        size="sm" 
-                        onClick={handleAnalyzePacket} 
-                        disabled={isAnalyzing || selectedPacket.sourceIp === 'SYSTEM'} 
-                        className="text-xs"
-                    >
-                      {isAnalyzing ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Brain className="mr-1.5 h-3 w-3" />}
-                       AI Analysis
-                    </Button>
+                    {selectedPacket.category === 'Network' && selectedPacket.protocol && (
+                        <Button 
+                            variant="primary" 
+                            size="sm" 
+                            onClick={handleAnalyzePacket} 
+                            disabled={isAnalyzing || selectedPacket.sourceIp === 'SYSTEM'} 
+                            className="text-xs"
+                        >
+                        {isAnalyzing ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Brain className="mr-1.5 h-3 w-3" />}
+                        AI Analysis
+                        </Button>
+                    )}
                   </div>
               </>
             ) : (

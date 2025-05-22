@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Globe, ListFilter, BotMessageSquare, Network, Settings2, Map, Cpu, GitFork } from 'lucide-react';
+import { LayoutDashboard, Globe, ListFilter, BotMessageSquare, Network, Settings2, Map, Cpu, GitFork, ShieldAlert, Terminal } from 'lucide-react';
 
 export type NavLink = {
   href: string;
@@ -53,19 +53,26 @@ export const NAV_LINKS: NavLink[] = [
   {
     href: '/traffic-stream', // Maps to Logs & Terminal
     label: 'Logs & Terminal',
-    icon: ListFilter,
+    icon: Terminal, // Changed from ListFilter
     longLabel: 'Live Traffic Logs & System Terminal',
     description: 'Real-time packet stream, system logs, and alert history.'
   },
   {
-    href: '/incident-reporting', // Maps to AI Lab
-    label: 'AI Lab',
-    icon: BotMessageSquare,
-    longLabel: 'AI Threat Emulation & Reporting',
-    description: 'Simulate attacks and generate AI-powered incident reports.'
+    href: '/threat-intelligence',
+    label: 'Threat Intel',
+    icon: ShieldAlert,
+    longLabel: 'Threat Intelligence Feed',
+    description: 'Curated and AI-analyzed threat profiles and indicators.'
   },
   {
-    href: '/proxy-engine', // Maps to Proxy/VPN/Honeypot
+    href: '/ai-lab', // Changed from /incident-reporting
+    label: 'AI Lab', // Changed from Incident Reporting / AI Reporting
+    icon: BotMessageSquare,
+    longLabel: 'AI Threat Emulation & Reporting',
+    description: 'Simulate attacks, generate reports, and test defenses.'
+  },
+  {
+    href: '/proxy-engine',
     label: 'Proxy/VPN',
     icon: Network,
     longLabel: 'Proxy, VPN & Honeypot Management',
@@ -79,3 +86,4 @@ export const NAV_LINKS: NavLink[] = [
     description: 'Manage application settings, user roles, and visual themes.'
   },
 ];
+

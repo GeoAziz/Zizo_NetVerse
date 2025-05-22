@@ -6,13 +6,15 @@ import Link from 'next/link';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Activity, AlertTriangle, BarChartHorizontalBig, Zap, Maximize, ChevronRight } from 'lucide-react';
+import { Activity, AlertTriangle, BarChartHorizontalBig, Zap, Maximize, ChevronRight, Bell, Server } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import AppLayout from '@/components/layout/AppLayout';
 import { NAV_LINKS, APP_NAME } from '@/lib/constants';
 import { motion } from 'framer-motion';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 const initialRadarChartData = [
   { subject: 'Malware', A: 120, B: 110, fullMark: 150 },
@@ -50,7 +52,7 @@ const vitalsChartConfig = {
   },
   memory: {
     label: "Memory Usage (%)",
-    color: "hsl(var(--secondary))", // Using secondary from theme
+    color: "hsl(var(--secondary))", 
   },
   network: {
     label: "Network (Mbps)",
@@ -58,18 +60,37 @@ const vitalsChartConfig = {
   },
 } satisfies ChartConfig;
 
-// Filter out the 'Home' link for module buttons as we are already on the dashboard.
 const commandModules = NAV_LINKS.filter(link => link.href !== '/dashboard');
+
+type MockNotification = {
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Info';
+  read: boolean;
+};
+
+const initialNotifications: MockNotification[] = [
+  { id: 'n1', title: 'Critical Alert: Data Breach Attempt', description: 'Suspicious outbound connection from SRV-03 to known C2 server blocked.', timestamp: new Date(Date.now() - 5 * 60000).toISOString(), severity: 'Critical', read: false },
+  { id: 'n2', title: 'High: Malware Detected', description: 'Malware signature "KryllWorm.X" detected on WKSTN-112. Quarantine pending.', timestamp: new Date(Date.now() - 15 * 60000).toISOString(), severity: 'High', read: false },
+  { id: 'n3', title: 'Medium: Port Scan Detected', description: 'IP 103.45.12.98 scanned multiple ports on FW-MAIN.', timestamp: new Date(Date.now() - 45 * 60000).toISOString(), severity: 'Medium', read: true },
+  { id: 'n4', title: 'Info: System Update Applied', description: 'Security patch ZN-2025-003 applied to all core servers.', timestamp: new Date(Date.now() - 2 * 3600000).toISOString(), severity: 'Info', read: true },
+];
+
 
 export default function DashboardPage() {
   const [activeThreats, setActiveThreats] = useState<number | null>(null);
   const [packetsIntercepted, setPacketsIntercepted] = useState<number | null>(null);
+  const [connectedDevices, setConnectedDevices] = useState<number | null>(null);
   const [radarChartData, setRadarChartData] = useState(initialRadarChartData);
   const [vitalsChartData, setVitalsChartData] = useState(initialVitalsChartData);
+  const [notifications, setNotifications] = useState<MockNotification[]>(initialNotifications);
 
   useEffect(() => {
     setActiveThreats(Math.floor(Math.random() * 20) + 5);
     setPacketsIntercepted(Math.floor(Math.random() * 500000) + 1000000);
+    setConnectedDevices(Math.floor(Math.random() * 100) + 50);
 
     const threatInterval = setInterval(() => {
       setActiveThreats(prev => prev !== null ? Math.max(0, prev + Math.floor(Math.random() * 6) - 3) : Math.floor(Math.random() * 20) + 5);
@@ -78,6 +99,10 @@ export default function DashboardPage() {
     const packetInterval = setInterval(() => {
       setPacketsIntercepted(prev => prev !== null ? prev + Math.floor(Math.random() * 15000) + 5000 : Math.floor(Math.random() * 500000) + 1000000);
     }, 2000);
+    
+    const deviceInterval = setInterval(() => {
+      setConnectedDevices(prev => prev !== null ? Math.max(10, prev + Math.floor(Math.random() * 10) - 5) : Math.floor(Math.random() * 100) + 50);
+    }, 7000);
 
     const radarInterval = setInterval(() => {
       setRadarChartData(prevData =>
@@ -96,7 +121,7 @@ export default function DashboardPage() {
         const date = new Date();
         date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
 
-        const newTimeDate = new Date(date.getTime() + 5 * 60000); // Add 5 minutes
+        const newTimeDate = new Date(date.getTime() + 5 * 60000); 
         const newTime = newTimeDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
         const newDataPoint = {
@@ -112,6 +137,7 @@ export default function DashboardPage() {
     return () => {
       clearInterval(threatInterval);
       clearInterval(packetInterval);
+      clearInterval(deviceInterval);
       clearInterval(radarInterval);
       clearInterval(vitalsInterval);
     };
@@ -126,6 +152,17 @@ export default function DashboardPage() {
     }),
   };
 
+  const getSeverityBadgeVariant = (severity: MockNotification['severity']) => {
+    switch (severity) {
+      case 'Critical': return 'destructive';
+      case 'High': return 'destructive'; // Or a custom orange
+      case 'Medium': return 'secondary'; // Or a custom yellow
+      case 'Low': return 'outline';
+      default: return 'default';
+    }
+  };
+
+
   return (
     <AppLayout>
       <div className="space-y-8">
@@ -135,9 +172,8 @@ export default function DashboardPage() {
           icon={Maximize}
         />
 
-        {/* Top Status Cards */}
         <motion.div
-          className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+          className="grid gap-6 md:grid-cols-2 lg:grid-cols-4" // Added one more column for new card
           initial="hidden"
           animate="visible"
           variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
@@ -169,58 +205,115 @@ export default function DashboardPage() {
           </motion.div>
 
           <motion.div variants={cardVariants}>
+            <Card className="shadow-lg hover:shadow-primary/50 transition-shadow duration-300 border-border/30 bg-card/80 backdrop-blur-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-foreground/80">Connected Devices</CardTitle>
+                <Server className="h-5 w-5 text-foreground/70" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">{connectedDevices !== null ? connectedDevices : '...'}</div>
+                <p className="text-xs text-muted-foreground">Total devices on network</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div variants={cardVariants}>
             <Card className="shadow-lg hover:shadow-primary/50 transition-shadow duration-300 border-secondary/30 bg-card/80 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-secondary">AI Emulation Status</CardTitle>
                 <Zap className="h-5 w-5 text-secondary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-400">Nominal</div> {/* Using text-green-400 for status */}
+                <div className="text-2xl font-bold text-green-400">Nominal</div>
                 <p className="text-xs text-muted-foreground">All AI simulations stable</p>
               </CardContent>
             </Card>
           </motion.div>
         </motion.div>
 
-        {/* Command Modules Section */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.5 }}>
-          <Card className="shadow-xl border-border/50 bg-card/90 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-xl text-accent">Command Modules</CardTitle>
-              <CardDescription>Access specialized system consoles and tools.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {commandModules.map((item, idx) => (
-                <motion.div
-                  key={item.href}
-                  variants={cardVariants}
-                  custom={idx}
-                  whileHover={{ scale: 1.03, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link href={item.href} passHref>
-                    <Card className="h-full flex flex-col justify-between bg-card-foreground/5 hover:bg-primary/10 hover:border-primary/70 border-border/30 transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer group">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                           <item.icon className="h-7 w-7 text-primary mb-2 transition-colors group-hover:text-accent" />
-                           <ChevronRight className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-accent" />
-                        </div>
-                        <CardTitle className="text-lg text-foreground group-hover:text-primary transition-colors">{item.label}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="flex-grow pb-3">
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {item.description || item.longLabel}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                </motion.div>
-              ))}
-            </CardContent>
-          </Card>
-        </motion.div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <motion.div 
+            className="lg:col-span-2"
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            <Card className="shadow-xl border-border/50 bg-card/90 backdrop-blur-sm h-full">
+              <CardHeader>
+                <CardTitle className="text-xl text-accent">Command Modules</CardTitle>
+                <CardDescription>Access specialized system consoles and tools.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {commandModules.map((item, idx) => (
+                  <motion.div
+                    key={item.href}
+                    variants={cardVariants}
+                    custom={idx}
+                    whileHover={{ scale: 1.03, y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Link href={item.href} passHref>
+                      <Card className="h-full flex flex-col justify-between bg-card-foreground/5 hover:bg-primary/10 hover:border-primary/70 border-border/30 transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer group">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center justify-between">
+                            <item.icon className="h-7 w-7 text-primary mb-2 transition-colors group-hover:text-accent" />
+                            <ChevronRight className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-accent" />
+                          </div>
+                          <CardTitle className="text-lg text-foreground group-hover:text-primary transition-colors">{item.label}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-grow pb-3">
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {item.description || item.longLabel}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  </motion.div>
+                ))}
+              </CardContent>
+            </Card>
+          </motion.div>
 
-        {/* Charts Section */}
+          <motion.div variants={cardVariants} custom={commandModules.length}>
+            <Card className="shadow-xl border-border/50 bg-card/90 backdrop-blur-sm h-full flex flex-col">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center"><Bell className="mr-2 h-5 w-5 text-primary"/>Notifications</CardTitle>
+                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-accent">View All</Button>
+                </div>
+                <CardDescription>Recent system alerts and updates.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow p-0">
+                <ScrollArea className="h-[300px] lg:h-full max-h-[calc(100%-4rem)] px-4 pb-4"> {/* Adjust height as needed */}
+                  {notifications.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No new notifications.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {notifications.map(notif => (
+                        <motion.div 
+                          key={notif.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className={`p-3 rounded-md border ${notif.read ? 'border-border/30 bg-black/20' : 'border-primary/50 bg-primary/10'}`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <h4 className={`font-semibold text-sm ${notif.read ? 'text-foreground/80' : 'text-primary'}`}>{notif.title}</h4>
+                            <Badge variant={getSeverityBadgeVariant(notif.severity)} className="text-xs">{notif.severity}</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notif.description}</p>
+                          <p className="text-xs text-muted-foreground/70 mt-1.5">{new Date(notif.timestamp).toLocaleTimeString()}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+        
+
         <div className="grid gap-6 lg:grid-cols-2">
           <motion.div variants={cardVariants} custom={commandModules.length + 1}>
             <Card className="shadow-xl border-border/50 bg-card/90 backdrop-blur-sm">
