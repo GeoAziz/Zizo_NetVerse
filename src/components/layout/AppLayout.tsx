@@ -5,13 +5,21 @@ import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter 
 import AppSidebar from './Sidebar';
 import AppHeader from './Header';
 import { APP_NAME } from '@/lib/constants';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, type UserRole } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
+// Define a map of the default page for each role
+const roleDefaultPages: Record<UserRole, string> = {
+  admin: '/dashboard',
+  analyst: '/dashboard',
+  viewer: '/dashboard',
+};
+
+
 export default function AppLayout({ children }: PropsWithChildren) {
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -24,13 +32,15 @@ export default function AppLayout({ children }: PropsWithChildren) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="ml-4 text-lg text-muted-foreground">Authenticating...</p>
+            <p className="ml-4 text-lg text-muted-foreground">Authenticating & Preparing Your Deck...</p>
         </div>
     );
   }
 
-  if (!user) {
-    return null; // or a fallback component if you want to avoid a flash of content
+  // If the user is loaded but has no role yet, they are not fully authenticated.
+  // This can happen for a split second while claims are loading.
+  if (!user || !role) {
+    return null; // or a fallback component to avoid a flash of content
   }
 
   return (
@@ -41,7 +51,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
             {APP_NAME}
           </h1>
            <div className="block group-data-[collapsible=icon]:hidden text-xs text-muted-foreground">
-            Cybersecurity Command Deck
+            Role: <span className="font-bold text-accent">{role.charAt(0).toUpperCase() + role.slice(1)}</span>
           </div>
         </SidebarHeader>
         <SidebarContent>

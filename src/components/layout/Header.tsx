@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation';
 
 export default function AppHeader() {
   const [currentTime, setCurrentTime] = useState('');
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, role } = useAuth(); // Add role from useAuth
   const router = useRouter();
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function AppHeader() {
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 px-6 backdrop-blur-md">
       <div className="flex items-center gap-4">
         <SidebarTrigger className="md:hidden" />
-        <h2 className="text-xl font-semibold text-foreground">{APP_NAME} <Badge variant="outline" className="ml-2 border-primary text-primary">Alpha</Badge></h2>
+        <h2 className="text-xl font-semibold text-foreground">{APP_NAME} <Badge variant="outline" className="ml-2 border-primary text-primary">v1.0 RBAC</Badge></h2>
       </div>
       <div className="flex items-center gap-4">
         <div className="hidden sm:flex items-center text-sm text-muted-foreground">
@@ -45,13 +45,14 @@ export default function AppHeader() {
         </div>
         {!loading && user && (
             <div className="flex items-center gap-4">
+                <div className="hidden md:flex flex-col items-end">
+                    <span className="font-semibold text-sm text-foreground">{user.displayName || user.email}</span>
+                    <span className="text-xs text-accent">{role?.toUpperCase()}</span>
+                </div>
                 <Avatar className="h-9 w-9">
-                    <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="cyborg avatar" />
+                    <AvatarImage src={`https://placehold.co/100x100.png?text=${user.email?.[0].toUpperCase() ?? 'A'}`} alt="User Avatar" data-ai-hint="cyborg avatar" />
                     <AvatarFallback>{user.email?.[0].toUpperCase() ?? 'A'}</AvatarFallback>
                 </Avatar>
-                <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Log out">
-                    <LogOut className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors"/>
-                </Button>
             </div>
         )}
       </div>

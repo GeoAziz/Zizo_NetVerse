@@ -18,15 +18,43 @@ export const APP_DESCRIPTION = "Cybersecurity Command Deck";
 export const NAV_LINKS: NavLink[] = [
   {
     href: '/dashboard',
-    label: 'Home',
+    label: 'Dashboard', // Simplified label
     icon: LayoutDashboard,
     longLabel: 'Mission Control Dashboard',
     description: 'Central overview of all system operations and alerts.'
   },
   {
-    href: '/network-visualization', // Maps to LAN View
+    href: '/traffic-stream',
+    label: 'Log Stream', // Simplified label
+    icon: Terminal, 
+    longLabel: 'Live Traffic & System Logs',
+    description: 'Real-time packet stream, system logs, and alert history.'
+  },
+  {
+    href: '/threat-intelligence',
+    label: 'Threat Intel',
+    icon: ShieldAlert,
+    longLabel: 'Threat Intelligence Feed',
+    description: 'Curated and AI-analyzed threat profiles and indicators.'
+  },
+  {
+    href: '/ai-lab',
+    label: 'AI Lab',
+    icon: BotMessageSquare,
+    longLabel: 'AI Threat Emulation & Reporting',
+    description: 'Simulate attacks, generate reports, and test defenses.'
+  },
+  {
+    href: '/device-inspector',
+    label: 'Device Inspector',
+    icon: Cpu,
+    longLabel: 'Device Dossier & Management',
+    description: 'Detailed information and controls for specific network devices.'
+  },
+  {
+    href: '/network-visualization',
     label: 'LAN View',
-    icon: GitFork, // Icon for local network topology
+    icon: GitFork,
     longLabel: 'Internal Network Map (LAN)',
     description: '3D visualization of local network devices and connections.'
   },
@@ -38,13 +66,6 @@ export const NAV_LINKS: NavLink[] = [
     description: 'Real-time 3D globe visualizing global packet travel.'
   },
   {
-    href: '/device-inspector',
-    label: 'Device Inspector',
-    icon: Cpu,
-    longLabel: 'Device Dossier & Management',
-    description: 'Detailed information and controls for specific network devices.'
-  },
-  {
     href: '/threat-map',
     label: 'Threat Map',
     icon: Map,
@@ -52,32 +73,11 @@ export const NAV_LINKS: NavLink[] = [
     description: 'Visualize active and historical cyber threats globally.'
   },
   {
-    href: '/traffic-stream', // Maps to Logs & Terminal
-    label: 'Logs & Terminal',
-    icon: Terminal, // Changed from ListFilter
-    longLabel: 'Live Traffic Logs & System Terminal',
-    description: 'Real-time packet stream, system logs, and alert history.'
-  },
-  {
-    href: '/threat-intelligence',
-    label: 'Threat Intel',
-    icon: ShieldAlert,
-    longLabel: 'Threat Intelligence Feed',
-    description: 'Curated and AI-analyzed threat profiles and indicators.'
-  },
-  {
-    href: '/ai-lab', // Changed from /incident-reporting
-    label: 'AI Lab', // Changed from Incident Reporting / AI Reporting
-    icon: BotMessageSquare,
-    longLabel: 'AI Threat Emulation & Reporting',
-    description: 'Simulate attacks, generate reports, and test defenses.'
-  },
-  {
     href: '/proxy-engine',
-    label: 'Proxy/VPN',
+    label: 'Proxy Engine',
     icon: Network,
-    longLabel: 'Proxy, VPN & Honeypot Management',
-    description: 'Configure and monitor proxy servers, VPN tunnels, and honeypots.'
+    longLabel: 'Proxy & Interception Engine',
+    description: 'Configure and monitor proxy servers and interception rules.'
   },
   {
     href: '/settings',
@@ -85,6 +85,6 @@ export const NAV_LINKS: NavLink[] = [
     icon: Settings2,
     longLabel: 'System Configuration',
     description: 'Manage application settings, user roles, and visual themes.',
-    adminOnly: true, // This page is now admin-only
+    adminOnly: true, // This page is admin-only
   },
 ];
