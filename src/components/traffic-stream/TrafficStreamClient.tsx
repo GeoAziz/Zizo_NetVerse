@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { analyzeTrafficPacket, type AnalyzeTrafficPacketInput, type AnalyzeTrafficPacketOutput } from '@/ai/flows/analyze-traffic-packet-flow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { fetchNetworkLogs } from '@/lib/logsApi';
+import { useAuth } from '@/contexts/AuthContext';
 
 type LogCategory = 'Network' | 'System' | 'Alerts' | 'Audit';
 
@@ -31,11 +32,11 @@ type TrafficLog = {
   id: string;
   timestamp: string;
   category: LogCategory;
-  protocol?: 'HTTP' | 'HTTPS' | 'TCP' | 'WebSocket' | 'DNS' | 'FTP' | 'SSH' | 'NTP'; 
-  sourceIp?: string;
-  sourcePort?: number;
-  destIp?: string;
-  destPort?: number;
+  protocol?: 'HTTP' | 'HTTPS' | 'TCP' | 'WebSocket' | 'DNS' | 'FTP' | 'SSH' | 'NTP' | 'ICMP' | 'unknown'; 
+  source_ip?: string;
+  source_port?: number;
+  dest_ip?: string;
+  dest_port?: number;
   length?: number;
   summary: string;
   action?: 'Allowed' | 'Blocked' | 'Modified' | 'Flagged' | 'Logged' | 'System Event' | 'User Action' | 'Security Alert';
@@ -43,6 +44,8 @@ type TrafficLog = {
   source_ip_enrichment?: any;
   dest_ip_enrichment?: any;
 };
+
+const API_BASE_WS = process.env.NEXT_PUBLIC_API_BASE_WS || 'ws://localhost:8000/api/v1';
 
 export default function TrafficStreamClient() {
   const [allLogs, setAllLogs]  = useState<TrafficLog[]>([]);
@@ -56,74 +59,95 @@ export default function TrafficStreamClient() {
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<LogCategory>('Network');
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  const connectWebSocket = useCallback(() => {
-    // TODO: The backend developer will need to provide the WebSocket URL.
-    // This is a placeholder for the real implementation.
-    // Example: const ws = new WebSocket('ws://your-backend-ip:8000/ws/logs/network');
+  const connectWebSocket = useCallback(async () => {
+    if (!user) return null;
+
+    const token = await user.getIdToken();
+    const ws = new WebSocket(`${API_BASE_WS}/ws/logs/network?token=${token}`);
     
-    // ws.onmessage = (event) => {
-    //   if (!isStreaming) return;
-    //   const newLog = JSON.parse(event.data);
-    //   setAllLogs(prevLogs => [
-    //     {...newLog, id: `log-${Date.now()}-${Math.random()}`},
-    //     ...prevLogs,
-    //   ].slice(0, 200));
-    // };
+    ws.onmessage = (event) => {
+      if (!isStreaming) return;
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === 'network_log') {
+          const newLog = {
+            ...message.data,
+            category: 'Network' as LogCategory,
+            action: message.data.action || 'Logged',
+          };
+          setAllLogs(prevLogs => [newLog, ...prevLogs].slice(0, 200));
+        }
+      } catch (e) {
+        console.error("Failed to parse WebSocket message:", e);
+      }
+    };
 
-    // ws.onopen = () => {
-    //   console.log("WebSocket connected");
-    //   toast({ title: "Live Stream Connected", description: "Receiving real-time network logs." });
-    // };
+    ws.onopen = () => {
+      toast({ title: "Live Stream Connected", description: "Receiving real-time network logs." });
+    };
 
-    // ws.onclose = () => {
-    //   console.log("WebSocket disconnected. Attempting to reconnect...");
-    //   setTimeout(connectWebSocket, 3000); // Reconnect after 3 seconds
-    // };
+    ws.onclose = () => {
+      toast({ title: "Live Stream Disconnected", description: "Attempting to reconnect...", variant: "destructive" });
+      setTimeout(connectWebSocket, 5000); // Reconnect after 5 seconds
+    };
 
-    // ws.onerror = (error) => {
-    //   console.error("WebSocket error:", error);
-    //   toast({ title: "Live Stream Connection Error", variant: "destructive" });
-    //   ws.close();
-    // };
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      toast({ title: "Live Stream Connection Error", variant: "destructive" });
+      ws.close();
+    };
 
-    // return ws;
-    console.log("WebSocket connection logic is in place but commented out. Backend implementation needed.");
-    return null;
+    return ws;
 
-  }, [isStreaming, toast]);
+  }, [isStreaming, toast, user]);
   
-  useEffect(() => {
-    // Uncomment and use real backend logs
-    fetchNetworkLogs().then((logs) => {
-      setAllLogs(logs.map((log: any, idx: number) => ({ ...log, id: log.id || `log-${idx}` })));
-    }).catch(() => {
-      toast({ title: 'Error', description: 'Failed to load network logs', variant: 'destructive' });
-    });
-    // const ws = connectWebSocket();
-    // return () => ws?.close();
-    // NOTE: The above lines are commented out until the backend is ready.
-    // For now, we will show a placeholder message.
-    const placeholder: TrafficLog[] = [{
-      id: 'placeholder-1',
-      timestamp: new Date().toISOString(),
-      category: 'Network',
-      summary: 'Waiting for live data from Python backend...',
-      sourceIp: '127.0.0.1',
-      destIp: 'frontend',
-      action: 'Logged'
-    }]
-    setAllLogs(placeholder);
+  const loadInitialLogs = async () => {
+     if (!user) return;
+     try {
+       const token = await user.getIdToken();
+       // Assuming fetchNetworkLogs will be updated to accept a token
+       const logs = await fetchNetworkLogs(); 
+       const formattedLogs = logs.map((log: any) => ({
+          ...log,
+          protocol: log.protocol || 'unknown',
+          category: 'Network' as LogCategory,
+          action: log.action || 'Logged'
+       }));
+       setAllLogs(formattedLogs);
+     } catch(e) {
+       toast({ title: 'Error', description: 'Failed to load initial network logs.', variant: 'destructive' });
+        const placeholder: TrafficLog[] = [{
+          id: 'placeholder-1',
+          timestamp: new Date().toISOString(),
+          category: 'Network',
+          summary: 'Could not connect to backend. Displaying placeholder data.',
+          source_ip: '127.0.0.1',
+          dest_ip: 'frontend',
+          action: 'Logged'
+        }]
+        setAllLogs(placeholder);
+     }
+  };
 
-  }, [connectWebSocket]);
+  useEffect(() => {
+    if (!user) return;
+
+    loadInitialLogs();
+    const ws = connectWebSocket();
+    
+    // This is not ideal as ws is a promise
+    // return () => ws?.close();
+  }, [user, connectWebSocket]);
 
 
   const filteredLogs = useMemo(() => {
     return allLogs.filter(log =>
       log.category === activeTab &&
       (log.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       (log.sourceIp && log.sourceIp.includes(searchTerm)) ||
-       (log.destIp && log.destIp.includes(searchTerm)) ||
+       (log.source_ip && log.source_ip.includes(searchTerm)) ||
+       (log.dest_ip && log.dest_ip.includes(searchTerm)) ||
        (log.protocol && log.protocol.toLowerCase().includes(searchTerm.toLowerCase()))) &&
       (protocolFilter === 'all' || !log.protocol || log.protocol === protocolFilter) &&
       (actionFilter === 'all' || !log.action || log.action === actionFilter)
@@ -131,7 +155,7 @@ export default function TrafficStreamClient() {
   }, [allLogs, searchTerm, protocolFilter, actionFilter, activeTab]);
 
   const handleAnalyzePacket = async () => {
-    if (!selectedPacket || !selectedPacket.protocol || selectedPacket.sourceIp === 'SYSTEM' || !selectedPacket.sourcePort || !selectedPacket.destIp || !selectedPacket.destPort || !selectedPacket.action) {
+    if (!selectedPacket || !selectedPacket.protocol || !selectedPacket.source_ip || !selectedPacket.source_port || !selectedPacket.dest_ip || !selectedPacket.dest_port || !selectedPacket.action) {
         toast({ title: "AI Analysis Unavailable", description: "Selected log is not suitable for network packet analysis.", variant: "default" });
         return;
     }
@@ -141,10 +165,10 @@ export default function TrafficStreamClient() {
     try {
       const input: AnalyzeTrafficPacketInput = {
         protocol: selectedPacket.protocol,
-        sourceIp: selectedPacket.sourceIp as string,
-        sourcePort: selectedPacket.sourcePort,
-        destIp: selectedPacket.destIp,
-        destPort: selectedPacket.destPort,
+        sourceIp: selectedPacket.source_ip,
+        sourcePort: selectedPacket.source_port,
+        destIp: selectedPacket.dest_ip,
+        destPort: selectedPacket.dest_port,
         summary: selectedPacket.summary,
         payloadExcerpt: selectedPacket.payloadExcerpt,
         action: selectedPacket.action,
@@ -174,6 +198,7 @@ export default function TrafficStreamClient() {
       case 'FTP': return 'bg-orange-500/20 text-orange-300 border-orange-500/50 hover:bg-orange-500/30';
       case 'SSH': return 'bg-pink-500/20 text-pink-300 border-pink-500/50 hover:bg-pink-500/30';
       case 'NTP': return 'bg-teal-500/20 text-teal-300 border-teal-500/50 hover:bg-teal-500/30';
+      case 'ICMP': return 'bg-gray-400/20 text-gray-200 border-gray-400/50 hover:bg-gray-400/30';
       default: return 'bg-slate-600/30 text-slate-300 border-slate-500/50 hover:bg-slate-600/40';
     }
   }
@@ -231,8 +256,8 @@ export default function TrafficStreamClient() {
                   <TableCell className="py-2 px-3">
                     {log.protocol && <Badge variant={"outline"} className={cn('text-[0.7rem] py-0.5 px-1.5 border', getProtocolBadgeClassName(log.protocol))}>{log.protocol}</Badge>}
                   </TableCell>
-                  <TableCell className="py-2 px-3 text-sky-300">{log.sourceIp}{log.sourcePort !==0 ? `:${log.sourcePort}` : ''}</TableCell>
-                  <TableCell className="py-2 px-3 text-lime-300">{log.destIp}{log.destIp && log.destPort ? `:${log.destPort}`: ''}</TableCell>
+                  <TableCell className="py-2 px-3 text-sky-300">{log.source_ip}{log.source_port !==0 ? `:${log.source_port}` : ''}</TableCell>
+                  <TableCell className="py-2 px-3 text-lime-300">{log.dest_ip}{log.dest_ip && log.dest_port ? `:${log.dest_port}`: ''}</TableCell>
                   <TableCell className="py-2 px-3 text-amber-300">{log.length ? `${log.length} B` : '-'}</TableCell>
                 </>
               )}
@@ -256,7 +281,7 @@ export default function TrafficStreamClient() {
     <div className="space-y-6">
       <Card className="shadow-lg border-border/50 bg-card/90 backdrop-blur-sm">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg text-accent">Stream Filters & Controls</CardTitle>
+          <CardTitle className="text-lg text-accent">Stream Filters &amp; Controls</CardTitle>
           <div className="flex flex-wrap gap-4 items-end pt-3">
             <div className="flex-grow min-w-[200px] sm:min-w-[250px]">
               <Label htmlFor="search" className="block text-xs font-medium text-muted-foreground mb-1">Search Current Log Tab</Label>
@@ -286,6 +311,7 @@ export default function TrafficStreamClient() {
                       <SelectItem value="FTP">FTP</SelectItem>
                       <SelectItem value="SSH">SSH</SelectItem>
                       <SelectItem value="NTP">NTP</SelectItem>
+                      <SelectItem value="ICMP">ICMP</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -366,7 +392,7 @@ export default function TrafficStreamClient() {
                 <div><strong>Timestamp:</strong> <span className="text-muted-foreground">{new Date(selectedPacket.timestamp).toLocaleString()}</span></div>
                 <div><strong>Category:</strong> <span className="text-muted-foreground">{selectedPacket.category}</span></div>
                 {selectedPacket.protocol && <div><strong>Protocol:</strong> <Badge variant={"outline"} className={cn('ml-1 text-[0.7rem]', getProtocolBadgeClassName(selectedPacket.protocol))}>{selectedPacket.protocol}</Badge></div>}
-                {selectedPacket.sourceIp && <div><strong>Source:</strong> <span className="text-sky-300">{selectedPacket.sourceIp}{selectedPacket.sourcePort && selectedPacket.sourcePort !== 0 ? `:${selectedPacket.sourcePort}` : ''}</span></div>}
+                {selectedPacket.source_ip && <div><strong>Source:</strong> <span className="text-sky-300">{selectedPacket.source_ip}{selectedPacket.source_port && selectedPacket.source_port !== 0 ? `:${selectedPacket.source_port}` : ''}</span></div>}
                 {/* Source IP Enrichment */}
                 {selectedPacket.source_ip_enrichment && (
                   <div className="ml-2 mb-2">
@@ -376,7 +402,7 @@ export default function TrafficStreamClient() {
                     </pre>
                   </div>
                 )}
-                {selectedPacket.destIp && <div><strong>Destination:</strong> <span className="text-lime-300">{selectedPacket.destIp}{selectedPacket.destPort ? `:${selectedPacket.destPort}`: ''}</span></div>}
+                {selectedPacket.dest_ip && <div><strong>Destination:</strong> <span className="text-lime-300">{selectedPacket.dest_ip}{selectedPacket.dest_port ? `:${selectedPacket.dest_port}`: ''}</span></div>}
                 {/* Destination IP Enrichment */}
                 {selectedPacket.dest_ip_enrichment && (
                   <div className="ml-2 mb-2">
@@ -489,3 +515,4 @@ export default function TrafficStreamClient() {
   );
 }
 
+    
