@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
 
@@ -12,7 +12,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   role: UserRole | null;
-  signup: typeof createUserWithEmailAndPassword;
+  // Note: signup is removed from here as it's no longer a direct frontend action
   login: typeof signInWithEmailAndPassword;
   logout: () => Promise<void>;
   forceRefreshUserToken: () => Promise<string | null>;
@@ -70,7 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     loading,
     role,
-    signup: (email, password) => createUserWithEmailAndPassword(auth, email, password),
     login: (email, password) => signInWithEmailAndPassword(auth, email, password),
     logout: async () => {
         await signOut(auth);
