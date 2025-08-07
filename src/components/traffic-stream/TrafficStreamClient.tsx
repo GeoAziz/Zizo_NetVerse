@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -7,18 +8,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, SkipForward, Search, Download, Eye, Brain, Loader2, TerminalSquare, ChevronRight, Network, AlertCircle, ShieldCheck, BookUser, Terminal } from 'lucide-react';
+import { Play, Pause, Search, Download, Brain, Loader2, TerminalSquare, ChevronRight, Network, AlertCircle, BookUser, Terminal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogFooter,
+  AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -42,60 +42,6 @@ type TrafficLog = {
   payloadExcerpt?: string; 
 };
 
-const generateMockData = (count: number, category: LogCategory): TrafficLog[] => {
-  const protocols: Array<NonNullable<TrafficLog['protocol']>> = ['HTTP', 'HTTPS', 'TCP', 'WebSocket', 'DNS', 'FTP', 'SSH', 'NTP'];
-  const networkActions: Array<NonNullable<TrafficLog['action']>> = ['Allowed', 'Blocked', 'Modified', 'Flagged', 'Logged'];
-  const systemActions: Array<NonNullable<TrafficLog['action']>> = ['System Event'];
-  const alertActions: Array<NonNullable<TrafficLog['action']>> = ['Security Alert'];
-  const auditActions: Array<NonNullable<TrafficLog['action']>> = ['User Action'];
-  
-  const systemSummaries = ["System boot initiated.", "Service 'nginx' started successfully.", "CPU usage exceeded 90% threshold.", "Disk space low on /var/log.", "User 'zizo_admin' logged in.", "Kernel update applied.", "Firewall reloaded."];
-  const alertSummaries = ["Critical: Brute force attempt detected on SSH.", "High: Known malware signature found in HTTP stream.", "Medium: Unusual outbound connection from 10.1.1.50.", "Low: Repeated login failures for user 'guest'.", "Critical: Potential DDoS activity on port 80.", "High: SQL Injection attempt on /api/login."];
-  const auditSummaries = ["User 'devmahnx' accessed /api/config.", "Firewall rule #1023 updated by 'zizo_admin'.", "System settings changed: NTP server updated.", "Security policy 'CorpNet-v2' applied.", "User 'analyst01' exported logs."];
-  
-  const commonDestPorts: { [key in NonNullable<TrafficLog['protocol']>]?: number[] } = {
-    HTTP: [80, 8080], HTTPS: [443], DNS: [53], FTP: [20, 21], SSH: [22], NTP: [123],
-  };
-
-  return Array.from({ length: count }, (_, i) => {
-    const now = new Date();
-    now.setSeconds(now.getSeconds() - i * (Math.floor(Math.random() * 3) + 1));
-    
-    let log: Partial<TrafficLog> = {
-      id: `log-${category}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${i}`,
-      timestamp: now.toISOString(),
-      category: category,
-    };
-
-    if (category === 'Network') {
-      const protocol = protocols[i % protocols.length];
-      const destPortOptions = commonDestPorts[protocol] || [Math.floor(Math.random() * 64511) + 1024];
-      const sourceIp = `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`;
-      const destIp = i % 3 === 0 ? `172.16.${Math.floor(Math.random()*32)}.${Math.floor(Math.random()*254)+1}` : `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`;
-      log = {
-        ...log,
-        protocol,
-        sourceIp,
-        sourcePort: Math.floor(Math.random() * 64511) + 1024,
-        destIp,
-        destPort: destPortOptions[Math.floor(Math.random() * destPortOptions.length)],
-        length: Math.floor(Math.random() * 1400) + (protocol === 'TCP' ? 20 : 40),
-        summary: `${protocol} flow: ${sourceIp} to ${destIp}`,
-        action: networkActions[i % networkActions.length],
-        payloadExcerpt: "GET / HTTP/1.1\r\nHost: example.com\r\nUser-Agent: ZizoNetVerse-Client/1.0\r\nAccept: */*\r\n",
-      };
-    } else if (category === 'System') {
-      log = { ...log, summary: systemSummaries[i % systemSummaries.length], action: systemActions[0], sourceIp: 'SYSTEM', sourcePort: 0 };
-    } else if (category === 'Alerts') {
-      log = { ...log, summary: alertSummaries[i % alertSummaries.length], action: alertActions[0], sourceIp: 'SYSTEM', sourcePort: 0 };
-    } else if (category === 'Audit') {
-      log = { ...log, summary: auditSummaries[i % auditSummaries.length], action: auditActions[0], sourceIp: 'SYSTEM', sourcePort: 0 };
-    }
-    return log as TrafficLog;
-  });
-};
-
-
 export default function TrafficStreamClient() {
   const [allLogs, setAllLogs]  = useState<TrafficLog[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -109,26 +55,60 @@ export default function TrafficStreamClient() {
   const [activeTab, setActiveTab] = useState<LogCategory>('Network');
   const { toast } = useToast();
 
-  const fetchMockData = useCallback((category: LogCategory) => {
-    return generateMockData(75, category);
-  }, []);
+  const connectWebSocket = useCallback(() => {
+    // TODO: The backend developer will need to provide the WebSocket URL.
+    // This is a placeholder for the real implementation.
+    // Example: const ws = new WebSocket('ws://your-backend-ip:8000/ws/logs/network');
+    
+    // ws.onmessage = (event) => {
+    //   if (!isStreaming) return;
+    //   const newLog = JSON.parse(event.data);
+    //   setAllLogs(prevLogs => [
+    //     {...newLog, id: `log-${Date.now()}-${Math.random()}`},
+    //     ...prevLogs,
+    //   ].slice(0, 200));
+    // };
+
+    // ws.onopen = () => {
+    //   console.log("WebSocket connected");
+    //   toast({ title: "Live Stream Connected", description: "Receiving real-time network logs." });
+    // };
+
+    // ws.onclose = () => {
+    //   console.log("WebSocket disconnected. Attempting to reconnect...");
+    //   setTimeout(connectWebSocket, 3000); // Reconnect after 3 seconds
+    // };
+
+    // ws.onerror = (error) => {
+    //   console.error("WebSocket error:", error);
+    //   toast({ title: "Live Stream Connection Error", variant: "destructive" });
+    //   ws.close();
+    // };
+
+    // return ws;
+    console.log("WebSocket connection logic is in place but commented out. Backend implementation needed.");
+    return null;
+
+  }, [isStreaming, toast]);
   
   useEffect(() => {
-    setAllLogs(fetchMockData(activeTab));
-  }, [activeTab, fetchMockData]);
+    // const ws = connectWebSocket();
+    // return () => ws?.close();
+    // NOTE: The above lines are commented out until the backend is ready.
+    // For now, we will show a placeholder message.
+    const placeholder: TrafficLog[] = [{
+      id: 'placeholder-1',
+      timestamp: new Date().toISOString(),
+      category: 'Network',
+      summary: 'Waiting for live data from Python backend...',
+      sourceIp: '127.0.0.1',
+      destIp: 'frontend',
+      action: 'Logged'
+    }]
+    setAllLogs(placeholder);
 
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    if (isStreaming) {
-      intervalId = setInterval(() => {
-        setAllLogs(prevLogs => [
-          ...generateMockData(Math.floor(Math.random() * 2) + 1, activeTab).map(log => ({...log, timestamp: new Date().toISOString()})),
-          ...prevLogs,
-        ].slice(0, 200)); 
-      }, 1500); 
-    }
-    return () => clearInterval(intervalId);
-  }, [isStreaming, activeTab]);
+  }, [connectWebSocket]);
+
 
   const filteredLogs = useMemo(() => {
     return allLogs.filter(log =>
@@ -396,20 +376,16 @@ export default function TrafficStreamClient() {
                 )}
 
                 <div className="pt-3 flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" className="text-xs border-border/60 hover:bg-primary/10 hover:border-primary"><Search className="mr-1.5 h-3 w-3" /> Full Inspect</Button>
-                    <Button variant="outline" size="sm" className="text-xs border-border/60 hover:bg-primary/10 hover:border-primary"><SkipForward className="mr-1.5 h-3 w-3" /> Replay Event</Button>
-                    {selectedPacket.category === 'Network' && selectedPacket.protocol && selectedPacket.sourceIp !== 'SYSTEM' && (
-                        <Button 
-                            variant="primary" 
-                            size="sm" 
-                            onClick={handleAnalyzePacket} 
-                            disabled={isAnalyzing} 
-                            className="text-xs"
-                        >
-                        {isAnalyzing ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Brain className="mr-1.5 h-3 w-3" />}
-                        AI Analysis
-                        </Button>
-                    )}
+                    <Button 
+                        variant="primary" 
+                        size="sm" 
+                        onClick={handleAnalyzePacket} 
+                        disabled={isAnalyzing || !selectedPacket.protocol} 
+                        className="text-xs"
+                    >
+                    {isAnalyzing ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Brain className="mr-1.5 h-3 w-3" />}
+                    AI Analysis
+                    </Button>
                   </div>
               </>
             ) : (
@@ -486,3 +462,5 @@ export default function TrafficStreamClient() {
     </div>
   );
 }
+
+    
