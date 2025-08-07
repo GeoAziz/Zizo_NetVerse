@@ -4,24 +4,34 @@ import firebase_admin
 from firebase_admin import credentials
 from core.config import settings
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 def initialize_firebase_admin():
     """
-    Initializes the Firebase Admin SDK using the service account key.
+    Initializes the Firebase Admin SDK using the service account key file.
     """
     # Check if the app is already initialized to prevent errors.
     if not firebase_admin._apps:
         try:
-            # The GOOGLE_APPLICATION_CREDENTIALS env var should be set.
-            # This is the recommended way for server environments.
-            cred = credentials.ApplicationDefault()
+            # Construct the path to the service account key.
+            # Assumes the script is run from the `src/backend` directory.
+            service_account_key_path = "core/serviceAccountKey.json"
+
+            if not os.path.exists(service_account_key_path):
+                logger.error(f"Service account key not found at '{service_account_key_path}'.")
+                logger.error("Please ensure 'serviceAccountKey.json' is in the 'src/backend/core' directory.")
+                return
+
+            cred = credentials.Certificate(service_account_key_path)
             
             firebase_admin.initialize_app(cred, {
-                'projectId': os.getenv("FIREBASE_PROJECT_ID"), # You might need to set this env var
+                'projectId': settings.FIREBASE_PROJECT_ID,
             })
-            print("Firebase Admin SDK initialized successfully.")
+            logger.info("Firebase Admin SDK initialized successfully using service account file.")
         except Exception as e:
-            print(f"Error initializing Firebase Admin SDK: {e}")
-            print("Please ensure the GOOGLE_APPLICATION_CREDENTIALS environment variable is set correctly.")
+            logger.error(f"Error initializing Firebase Admin SDK: {e}")
     else:
-        print("Firebase Admin SDK already initialized.")
+        logger.info("Firebase Admin SDK already initialized.")
+

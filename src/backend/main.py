@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
+# This needs to be called before the app starts to ensure it's available
 firebase_admin.initialize_firebase_admin()
 
 app = FastAPI(
@@ -51,7 +52,7 @@ async def health_check():
     return {
         "status": "healthy",
         "services": {
-            "firebase": "connected",
+            "firebase": "connected" if firebase_admin._apps else "disconnected",
             "capture": "ready" if network_capture else "unavailable",
             "message_queue": "ready" if message_queue else "unavailable"
         }
@@ -125,3 +126,4 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
+
