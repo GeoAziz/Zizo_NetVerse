@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -24,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeTrafficPacket, type AnalyzeTrafficPacketInput, type AnalyzeTrafficPacketOutput } from '@/ai/flows/analyze-traffic-packet-flow';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { fetchNetworkLogs } from '@/lib/logsApi';
 
 type LogCategory = 'Network' | 'System' | 'Alerts' | 'Audit';
 
@@ -40,6 +40,8 @@ type TrafficLog = {
   summary: string;
   action?: 'Allowed' | 'Blocked' | 'Modified' | 'Flagged' | 'Logged' | 'System Event' | 'User Action' | 'Security Alert';
   payloadExcerpt?: string; 
+  source_ip_enrichment?: any;
+  dest_ip_enrichment?: any;
 };
 
 export default function TrafficStreamClient() {
@@ -92,6 +94,12 @@ export default function TrafficStreamClient() {
   }, [isStreaming, toast]);
   
   useEffect(() => {
+    // Uncomment and use real backend logs
+    fetchNetworkLogs().then((logs) => {
+      setAllLogs(logs.map((log: any, idx: number) => ({ ...log, id: log.id || `log-${idx}` })));
+    }).catch(() => {
+      toast({ title: 'Error', description: 'Failed to load network logs', variant: 'destructive' });
+    });
     // const ws = connectWebSocket();
     // return () => ws?.close();
     // NOTE: The above lines are commented out until the backend is ready.
@@ -133,7 +141,7 @@ export default function TrafficStreamClient() {
     try {
       const input: AnalyzeTrafficPacketInput = {
         protocol: selectedPacket.protocol,
-        sourceIp: selectedPacket.sourceIp,
+        sourceIp: selectedPacket.sourceIp as string,
         sourcePort: selectedPacket.sourcePort,
         destIp: selectedPacket.destIp,
         destPort: selectedPacket.destPort,
@@ -314,7 +322,7 @@ export default function TrafficStreamClient() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <Card className="xl:col-span-2 shadow-xl border-border/50 bg-card/90 backdrop-blur-md">
-          <Tabs defaultValue="Network" onValueChange={(value) => setActiveTab(value as LogCategory)} className="w-full">
+          <Tabs defaultValue="Network" onValueChange={(value: string) => setActiveTab(value as LogCategory)} className="w-full">
             <CardHeader className="border-b border-border/30 pb-0">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -359,7 +367,25 @@ export default function TrafficStreamClient() {
                 <div><strong>Category:</strong> <span className="text-muted-foreground">{selectedPacket.category}</span></div>
                 {selectedPacket.protocol && <div><strong>Protocol:</strong> <Badge variant={"outline"} className={cn('ml-1 text-[0.7rem]', getProtocolBadgeClassName(selectedPacket.protocol))}>{selectedPacket.protocol}</Badge></div>}
                 {selectedPacket.sourceIp && <div><strong>Source:</strong> <span className="text-sky-300">{selectedPacket.sourceIp}{selectedPacket.sourcePort && selectedPacket.sourcePort !== 0 ? `:${selectedPacket.sourcePort}` : ''}</span></div>}
+                {/* Source IP Enrichment */}
+                {selectedPacket.source_ip_enrichment && (
+                  <div className="ml-2 mb-2">
+                    <strong className="text-xs text-muted-foreground/80">Source IP Enrichment:</strong>
+                    <pre className="bg-black/60 rounded p-2 text-[0.7rem] text-green-300 whitespace-pre-wrap border border-border/30 mt-1">
+                      {JSON.stringify(selectedPacket.source_ip_enrichment, null, 2)}
+                    </pre>
+                  </div>
+                )}
                 {selectedPacket.destIp && <div><strong>Destination:</strong> <span className="text-lime-300">{selectedPacket.destIp}{selectedPacket.destPort ? `:${selectedPacket.destPort}`: ''}</span></div>}
+                {/* Destination IP Enrichment */}
+                {selectedPacket.dest_ip_enrichment && (
+                  <div className="ml-2 mb-2">
+                    <strong className="text-xs text-muted-foreground/80">Destination IP Enrichment:</strong>
+                    <pre className="bg-black/60 rounded p-2 text-[0.7rem] text-green-300 whitespace-pre-wrap border border-border/30 mt-1">
+                      {JSON.stringify(selectedPacket.dest_ip_enrichment, null, 2)}
+                    </pre>
+                  </div>
+                )}
                 {selectedPacket.length && <div><strong>Length:</strong> <span className="text-amber-300">{selectedPacket.length} Bytes</span></div>}
                 <div className="break-words"><strong>Summary:</strong> <span className="text-foreground/90">{selectedPacket.summary}</span></div>
                 {selectedPacket.action && <div><strong>Action/Type:</strong> <Badge variant={"outline"} className={cn('ml-1 text-[0.7rem]', getActionBadgeClassName(selectedPacket.action))}>{selectedPacket.action}</Badge></div>}
@@ -377,7 +403,7 @@ export default function TrafficStreamClient() {
 
                 <div className="pt-3 flex flex-wrap gap-2">
                     <Button 
-                        variant="primary" 
+                        variant="default" 
                         size="sm" 
                         onClick={handleAnalyzePacket} 
                         disabled={isAnalyzing || !selectedPacket.protocol} 
@@ -463,4 +489,3 @@ export default function TrafficStreamClient() {
   );
 }
 
-    

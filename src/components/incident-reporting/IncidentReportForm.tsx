@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -12,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { generateIncidentReport, type GenerateIncidentReportInput, type GenerateIncidentReportOutput } from '@/ai/flows/generate-incident-report';
+import { generateIncidentReport as backendGenerateIncidentReport } from '@/lib/incidentApi';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Loader2, Sparkles, ListChecks } from 'lucide-react';
@@ -23,6 +22,17 @@ const formSchema = z.object({
   threatIntelData: z.string().min(30, "Threat intelligence data must be at least 30 characters."),
   visualizationType: z.enum(['network_map', 'threat_timeline', 'geo_distribution']),
 });
+
+type GenerateIncidentReportInput = z.infer<typeof formSchema>;
+
+type GenerateIncidentReportOutput = {
+  reportTitle: string;
+  executiveSummary: string;
+  detailedAnalysis: string;
+  recommendations: string;
+  suggestedRuleImprovements?: string[];
+  visualizationDataUri?: string;
+};
 
 export default function IncidentReportForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -43,20 +53,12 @@ export default function IncidentReportForm() {
     setIsLoading(true);
     setReport(null);
     try {
-      const result = await generateIncidentReport(data);
-      setReport(result);
-      toast({
-        title: "Report Generated Successfully!",
-        description: "The AI has compiled the incident report.",
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Error generating report:", error);
-      toast({
-        title: "Error Generating Report",
-        description: error instanceof Error ? error.message : "An unknown error occurred.",
-        variant: "destructive",
-      });
+      // Use backend endpoint for incident report generation
+      const backendResult = await backendGenerateIncidentReport(data);
+      setReport(backendResult.analysis || backendResult);
+      toast({ title: 'Incident Report Generated', description: 'AI-powered report is ready.' });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to generate incident report', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }

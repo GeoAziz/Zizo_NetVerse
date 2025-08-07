@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
+import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import ThreatCard, { type Threat } from './ThreatCard';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Bug, Fish, ShieldOff, DatabaseZap, TerminalSquare, AlertOctagon, type LucideIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
+import { getThreatFeeds } from '@/lib/enrichmentApi';
 
 const threatTypeToIconMap: Record<Threat['type'], LucideIcon | undefined> = {
   Malware: Bug,
@@ -58,19 +59,35 @@ export default function ThreatIntelligenceClient() {
   const fetchThreats = async () => {
     setIsLoading(true);
     try {
+      // Fetch from Firestore as before
       const threatsCollection = collection(db, 'threats');
       const threatsSnapshot = await getDocs(threatsCollection);
-      const threatsList = threatsSnapshot.docs.map(doc => ({
+      const threatsList = threatsSnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
         id: doc.id,
         ...doc.data()
       })) as Threat[];
-      
+      // Fetch backend threat feeds
+      let backendFeeds: string[] = [];
+      try {
+        const feeds = await getThreatFeeds();
+        backendFeeds = feeds.feeds || [];
+      } catch {}
+      // Attach backend feeds to a special threat
+      if (backendFeeds.length > 0) {
+        threatsList.push({
+          id: 'backend-feeds',
+          type: 'Custom',
+          description: `Custom backend threat feeds: ${backendFeeds.join(', ')}`,
+          severity: 'info',
+          status: 'Active',
+          icon: undefined,
+        } as any);
+      }
       const threatsWithIcons = threatsList.map(t => ({
         ...t,
         icon: threatTypeToIconMap[t.type] || undefined,
       }));
       setThreats(threatsWithIcons);
-      
       if (threatsWithIcons.length === 0) {
         toast({
           title: "Threat Feed Empty",
@@ -78,15 +95,8 @@ export default function ThreatIntelligenceClient() {
           variant: "default",
         });
       }
-
-    } catch (error) {
-      console.error("Error fetching threat intel:", error);
-      toast({
-        title: "Error Fetching Threats",
-        description: error instanceof Error ? error.message : "An unknown error occurred while fetching from Firestore.",
-        variant: "destructive",
-      });
-      setThreats([]);
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to load threat intelligence', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -15,6 +14,7 @@ import IncidentReportForm from '@/components/incident-reporting/IncidentReportFo
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { analyzePacket, analyzeIncident } from '@/lib/aiLabApi';
 
 type EmulationScenarioKey = 
   | 'simulated_malware' 
@@ -117,18 +117,23 @@ export default function ThreatEmulationClient() {
   const [targetScope, setTargetScope] = useState('');
   const { toast } = useToast();
 
-  const handleRunEmulation = () => {
+  const handleRunEmulation = async () => {
     setStatus('running');
     const currentScenario = scenarioDetails[selectedScenario];
     setEmulationLog([`Starting emulation: ${currentScenario.name}...`]);
-
     let stepDelay = 1000;
     currentScenario.mockSteps.forEach((step, index) => {
       setTimeout(() => {
         setEmulationLog(prev => [...prev, step]);
       }, stepDelay * (index + 1));
     });
-
+    // Call backend AI analysis for real data (example: analyzePacket)
+    try {
+      const aiResult = await analyzePacket({ scenario: selectedScenario, target: targetScope });
+      setEmulationLog(prev => [...prev, `AI Analysis: ${JSON.stringify(aiResult)}`]);
+    } catch (e) {
+      setEmulationLog(prev => [...prev, 'AI backend analysis failed.']);
+    }
     setTimeout(() => {
       const success = Math.random() > 0.15; // 85% success rate for simulation
       if (success) {
@@ -188,7 +193,7 @@ export default function ThreatEmulationClient() {
                 <Label htmlFor="scenario" className="text-muted-foreground">Select Emulation Scenario</Label>
                 <Select
                   value={selectedScenario}
-                  onValueChange={(value) => setSelectedScenario(value as EmulationScenarioKey)}
+                  onValueChange={(value: string) => setSelectedScenario(value as EmulationScenarioKey)}
                   disabled={status === 'running'}
                 >
                   <SelectTrigger id="scenario" className="w-full bg-input border-border focus:ring-primary mt-1">
@@ -296,4 +301,3 @@ export default function ThreatEmulationClient() {
   );
 }
 
-    
