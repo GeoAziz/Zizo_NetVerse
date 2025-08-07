@@ -3,41 +3,52 @@
 import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Network, ToggleLeft, BarChart, Database, Settings, ShieldCheck, BarChart3, FileText, ListPlus } from 'lucide-react';
+import { Network, Settings, BarChart3, ListPlus, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import AppLayout from '@/components/layout/AppLayout'; // Import AppLayout
+import AppLayout from '@/components/layout/AppLayout';
 import { useEffect, useState } from 'react';
 import { startProxy, stopProxy, fetchProxyRules, getProxyStatus } from '@/lib/proxyApi';
 
-const mockRules = [
-	{ id: 'RULE-001', description: 'Block known C&C server IPs (ThreatFeed-A)', action: 'Block', status: 'Active' },
-	{ id: 'RULE-002', description: 'Allow outbound HTTPS on port 443 for finance dept', action: 'Allow', status: 'Active' },
-	{ id: 'RULE-003', description: 'Log all DNS requests to *.internal.local (Audit)', action: 'Log', status: 'Inactive' },
-	{ id: 'RULE-004', description: 'Rate limit connections to /login endpoint', action: 'Rate Limit', status: 'Active' },
-];
+type Rule = {
+  id: string;
+  description: string;
+  action: 'Block' | 'Allow' | 'Log' | 'Rate Limit';
+  status: 'Active' | 'Inactive';
+};
 
 export default function ProxyEnginePage() {
 	const { toast } = useToast();
-	const [rules, setRules] = useState<typeof mockRules>([]);
+	const [rules, setRules] = useState<Rule[]>([]);
 	const [engineStatus, setEngineStatus] = useState<'active' | 'inactive' | 'error'>('inactive');
 	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
-		fetchProxyRules().then(setRules);
-		getProxyStatus().then((res) => setEngineStatus(res.status === 'active' ? 'active' : 'inactive'));
-	}, []);
+		const initProxyState = async () => {
+			try {
+				const rulesData = await fetchProxyRules();
+				setRules(rulesData);
+				const statusData = await getProxyStatus();
+				setEngineStatus(statusData.status === 'active' ? 'active' : 'inactive');
+			} catch (e) {
+				toast({ title: 'Error', description: 'Failed to fetch initial proxy state.', variant: 'destructive'});
+				setEngineStatus('error');
+			}
+		};
+		initProxyState();
+	}, [toast]);
 
 	const handleStartProxy = async () => {
 		setLoading(true);
 		try {
 			await startProxy();
 			setEngineStatus('active');
-			toast({ title: 'Proxy Started', description: 'Proxy engine is now running.' });
+			toast({ title: 'Proxy Started', description: 'Proxy interception engine is now running.' });
 		} catch (e: any) {
-			toast({ title: 'Failed to Start Proxy', description: e?.message || 'Unknown error', variant: 'destructive' });
+			const errorMessage = e.response?.data?.detail || 'An unknown error occurred while starting the proxy.';
+			toast({ title: 'Failed to Start Proxy', description: errorMessage, variant: 'destructive' });
 		} finally {
 			setLoading(false);
 		}
@@ -48,9 +59,10 @@ export default function ProxyEnginePage() {
 		try {
 			await stopProxy();
 			setEngineStatus('inactive');
-			toast({ title: 'Proxy Stopped', description: 'Proxy engine has been stopped.' });
+			toast({ title: 'Proxy Stopped', description: 'Proxy interception engine has been stopped.' });
 		} catch (e: any) {
-			toast({ title: 'Failed to Stop Proxy', description: e?.message || 'Unknown error', variant: 'destructive' });
+			const errorMessage = e.response?.data?.detail || 'An unknown error occurred while stopping the proxy.';
+			toast({ title: 'Failed to Stop Proxy', description: errorMessage, variant: 'destructive' });
 		} finally {
 			setLoading(false);
 		}
@@ -64,6 +76,12 @@ export default function ProxyEnginePage() {
 		});
 	};
 
+	const getStatusColor = () => {
+		if (engineStatus === 'active') return 'text-green-400';
+		if (engineStatus === 'inactive') return 'text-yellow-400';
+		return 'text-red-500';
+	}
+
 	return (
 		<AppLayout>
 			<div>
@@ -75,21 +93,23 @@ export default function ProxyEnginePage() {
 				<Card className="shadow-xl mb-6">
 					<CardHeader>
 						<CardTitle>
-							Engine Status: {engineStatus === 'active' ? (
-								<span className="text-green-400">Active & Nominal</span>
-							) : (
-								<span className="text-red-400">Inactive</span>
-							)}
+							Engine Status: <span className={getStatusColor()}>{engineStatus.charAt(0).toUpperCase() + engineStatus.slice(1)}</span>
 						</CardTitle>
 						<CardDescription>
-							The proxy engine is currently {engineStatus === 'active' ? 'intercepting and analyzing HTTP/S, TCP, and WebSocket traffic.' : 'not running.'}
+							{engineStatus === 'active' 
+								? 'The proxy engine is currently intercepting and analyzing traffic.' 
+								: engineStatus === 'inactive'
+								? 'The proxy engine is not running.'
+								: 'There was an error communicating with the proxy engine.'}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="flex gap-4">
 						<Button onClick={handleStartProxy} disabled={engineStatus === 'active' || loading} variant="default">
+							{loading && engineStatus !== 'active' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
 							Start Proxy
 						</Button>
 						<Button onClick={handleStopProxy} disabled={engineStatus !== 'active' || loading} variant="destructive">
+							{loading && engineStatus === 'active' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
 							Stop Proxy
 						</Button>
 					</CardContent>

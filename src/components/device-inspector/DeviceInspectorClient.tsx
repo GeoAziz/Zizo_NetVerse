@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ShieldAlert, Power, Ban, Globe, Cpu } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getDevice, controlDevice } from '@/lib/deviceApi';
 import { enrichIp } from '@/lib/enrichmentApi';
 
 interface DeviceDetails {
@@ -22,14 +23,14 @@ interface DeviceDetails {
 export default function DeviceInspectorClient({ deviceId }: { deviceId: string }) {
   const { toast } = useToast();
   const [device, setDevice] = useState<DeviceDetails | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`/api/v1/devices/${deviceId}`)
-      .then(res => res.json())
-      .then(async (dev) => {
-        // Fetch enrichment for device IP
+    const fetchDeviceData = async () => {
+      setLoading(true);
+      try {
+        const dev = await getDevice(deviceId);
         if (dev && dev.ip) {
           try {
             const enrich = await enrichIp(dev.ip);
@@ -39,34 +40,34 @@ export default function DeviceInspectorClient({ deviceId }: { deviceId: string }
           }
         }
         setDevice(dev);
-      })
-      .catch(() => toast({ title: 'Error', description: 'Failed to load device details', variant: 'destructive' }))
-      .finally(() => setLoading(false));
-  }, [deviceId]);
+      } catch (err) {
+        toast({ title: 'Error', description: 'Failed to load device details from backend.', variant: 'destructive' });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDeviceData();
+  }, [deviceId, toast]);
 
   const handleControl = async (action: 'shutdown' | 'isolate' | 'block') => {
-    setLoading(true);
+    setActionLoading(true);
     try {
-      const res = await fetch(`/api/v1/control/${action}-device`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_id: deviceId })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast({ title: 'Success', description: data.message });
-        setDevice((d) => d ? { ...d, status: action === 'isolate' ? 'isolated' : d.status } : d);
-      } else {
-        toast({ title: 'Error', description: data.detail || 'Failed to perform action', variant: 'destructive' });
+      const data = await controlDevice(action, deviceId);
+      toast({ title: 'Success', description: data.message || `Action '${action}' sent.` });
+      // Optimistically update status
+      if (action === 'isolate') {
+        setDevice((d) => (d ? { ...d, status: 'isolated' } : d));
       }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to perform action', variant: 'destructive' });
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.detail || `Failed to perform action: ${action}`;
+      toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
-  if (loading || !device) return <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin h-8 w-8 text-accent" /></div>;
+  if (loading) return <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin h-8 w-8 text-accent" /></div>;
+  if (!device) return <div className="text-center text-muted-foreground p-8">Could not load device data.</div>;
 
   return (
     <Card className="shadow-lg">
@@ -89,9 +90,18 @@ export default function DeviceInspectorClient({ deviceId }: { deviceId: string }
         </div>
       </CardContent>
       <CardFooter className="flex gap-2">
-        <Button variant="destructive" onClick={() => handleControl('shutdown')} disabled={loading}>Shutdown</Button>
-        <Button variant="outline" onClick={() => handleControl('isolate')} disabled={loading || device.status === 'isolated'}>Isolate</Button>
-        <Button variant="secondary" onClick={() => handleControl('block')} disabled={loading}>Block</Button>
+        <Button variant="destructive" onClick={() => handleControl('shutdown')} disabled={actionLoading}>
+          {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Power className="mr-2 h-4 w-4"/>}
+          Shutdown
+        </Button>
+        <Button variant="outline" onClick={() => handleControl('isolate')} disabled={actionLoading || device.status === 'isolated'}>
+           {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Ban className="mr-2 h-4 w-4"/>}
+          Isolate
+        </Button>
+        <Button variant="secondary" onClick={() => handleControl('block')} disabled={actionLoading}>
+          {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldAlert className="mr-2 h-4 w-4"/>}
+          Block
+        </Button>
       </CardFooter>
     </Card>
   );

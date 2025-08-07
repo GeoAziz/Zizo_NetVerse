@@ -5,16 +5,15 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input'; // Not used, but good to have if needed
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { generateIncidentReport as backendGenerateIncidentReport } from '@/lib/incidentApi';
+import { generateIncidentReport as generateIncidentReportFlow } from '@/ai/flows/generate-incident-report';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Loader2, Sparkles, ListChecks } from 'lucide-react';
+import { ScrollArea } from '../ui/scroll-area';
 
 const formSchema = z.object({
   incidentDescription: z.string().min(50, "Incident description must be at least 50 characters."),
@@ -42,9 +41,9 @@ export default function IncidentReportForm() {
   const form = useForm<GenerateIncidentReportInput>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      incidentDescription: '',
-      networkDataSummary: '',
-      threatIntelData: '',
+      incidentDescription: "On 2024-07-29 at 14:35 UTC, multiple alerts fired related to suspicious outbound traffic from server 'SRV-DB-01' (10.0.1.54) to an unknown IP address (198.51.100.23). The traffic was flagged by our Data Loss Prevention system for attempting to transfer a compressed archive named 'db_backup_q2.zip'.",
+      networkDataSummary: "Observed a sustained TCP connection on port 4444 from 10.0.1.54 to 198.51.100.23, lasting 15 minutes. Approximately 850MB of data was exfiltrated before the connection was terminated by automated firewall rules. Normal traffic for this server is restricted to internal subnets and a known update server.",
+      threatIntelData: "The destination IP 198.51.100.23 is associated with the 'KryllWorm' malware family, a known data-stealing trojan. Our threat feed indicates this IP was activated as a C2 server within the last 48 hours. The TTPs match 'T1041: Exfiltration Over C2 Channel'.",
       visualizationType: 'network_map',
     },
   });
@@ -53,12 +52,12 @@ export default function IncidentReportForm() {
     setIsLoading(true);
     setReport(null);
     try {
-      // Use backend endpoint for incident report generation
-      const backendResult = await backendGenerateIncidentReport(data);
-      setReport(backendResult.analysis || backendResult);
+      const backendResult = await generateIncidentReportFlow(data);
+      setReport(backendResult);
       toast({ title: 'Incident Report Generated', description: 'AI-powered report is ready.' });
-    } catch (e) {
-      toast({ title: 'Error', description: 'Failed to generate incident report', variant: 'destructive' });
+    } catch (e: any) {
+      const errorMessage = e?.message || 'Failed to generate incident report';
+      toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +93,7 @@ export default function IncidentReportForm() {
                   <FormItem>
                     <FormLabel>Network Data Summary</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Summary of relevant network logs, traffic anomalies, affected IPs/ports..." {...field} rows={3} className="bg-input border-border focus:ring-primary" />
+                      <Textarea placeholder="Summary of relevant network logs, traffic anomalies, affected IPs/ports..." {...field} rows={4} className="bg-input border-border focus:ring-primary" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -107,7 +106,7 @@ export default function IncidentReportForm() {
                   <FormItem>
                     <FormLabel>Threat Intelligence Data</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Known TTPs, threat actor information, relevant IOCs..." {...field} rows={3} className="bg-input border-border focus:ring-primary" />
+                      <Textarea placeholder="Known TTPs, threat actor information, relevant IOCs..." {...field} rows={4} className="bg-input border-border focus:ring-primary" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -148,85 +147,88 @@ export default function IncidentReportForm() {
         </CardContent>
       </Card>
 
-      <Card className="shadow-xl">
+      <Card className="shadow-xl flex flex-col">
         <CardHeader>
           <CardTitle>Generated Report</CardTitle>
           <CardDescription>The AI-generated report will appear here.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto">
-          {isLoading && (
-            <div className="flex flex-col items-center justify-center h-64">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="mt-4 text-muted-foreground">Generating report, please wait...</p>
-            </div>
-          )}
-          {report && !isLoading && (
-            <>
-              <h2 className="text-2xl font-semibold text-primary">{report.reportTitle}</h2>
-              
-              <div>
-                <h3 className="text-lg font-medium mt-4 mb-1 text-accent">Executive Summary</h3>
-                <div className="prose prose-sm prose-invert max-w-none p-3 bg-black/20 rounded-md border border-border/50 text-sm">
-                  <pre className="whitespace-pre-wrap font-sans">{report.executiveSummary}</pre>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-medium mt-4 mb-1 text-accent">Detailed Analysis</h3>
-                 <div className="prose prose-sm prose-invert max-w-none p-3 bg-black/20 rounded-md border border-border/50 text-sm">
-                  <pre className="whitespace-pre-wrap font-sans">{report.detailedAnalysis}</pre>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-medium mt-4 mb-1 text-accent">Recommendations</h3>
-                 <div className="prose prose-sm prose-invert max-w-none p-3 bg-black/20 rounded-md border border-border/50 text-sm">
-                  <pre className="whitespace-pre-wrap font-sans">{report.recommendations}</pre>
-                </div>
-              </div>
-
-              {report.suggestedRuleImprovements && report.suggestedRuleImprovements.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-medium mt-4 mb-1 text-accent flex items-center">
-                    <ListChecks className="mr-2 h-5 w-5" />
-                    Suggested Rule Improvements
-                  </h3>
-                  <ul className="list-none p-3 bg-black/20 rounded-md border border-border/50 text-sm space-y-2">
-                    {report.suggestedRuleImprovements.map((rule, index) => (
-                      <li key={index} className="font-mono text-xs text-foreground/90 bg-black/30 p-2 rounded-sm border border-border/30">
-                        {rule}
-                      </li>
-                    ))}
-                  </ul>
+        <CardContent className="space-y-4 flex-grow">
+          <ScrollArea className="h-[calc(100vh-400px)]">
+            <div className="pr-4">
+              {isLoading && (
+                <div className="flex flex-col items-center justify-center h-full pt-16">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                  <p className="mt-4 text-muted-foreground">Generating report, please wait...</p>
                 </div>
               )}
-              
-              {report.visualizationDataUri && (
-                <div className="mt-6">
-                  <h3 className="text-lg font-medium mb-2 text-accent">Visualization</h3>
-                  <div className="relative aspect-video w-full overflow-hidden rounded-md border border-border shadow-lg">
-                    <Image 
-                        src={report.visualizationDataUri} 
-                        alt="Generated Visualization" 
-                        layout="fill"
-                        objectFit="contain" 
-                        className="bg-muted"
-                        unoptimized={report.visualizationDataUri.startsWith('data:')} // Required for data URIs
-                    />
+              {report && !isLoading && (
+                <>
+                  <h2 className="text-2xl font-semibold text-primary">{report.reportTitle}</h2>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium mt-4 mb-1 text-accent">Executive Summary</h3>
+                    <div className="prose prose-sm prose-invert max-w-none p-3 bg-black/20 rounded-md border border-border/50 text-sm whitespace-pre-wrap font-sans">
+                      {report.executiveSummary}
+                    </div>
                   </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium mt-4 mb-1 text-accent">Detailed Analysis</h3>
+                    <div className="prose prose-sm prose-invert max-w-none p-3 bg-black/20 rounded-md border border-border/50 text-sm whitespace-pre-wrap font-sans">
+                      {report.detailedAnalysis}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-medium mt-4 mb-1 text-accent">Recommendations</h3>
+                    <div className="prose prose-sm prose-invert max-w-none p-3 bg-black/20 rounded-md border border-border/50 text-sm whitespace-pre-wrap font-sans">
+                      {report.recommendations}
+                    </div>
+                  </div>
+
+                  {report.suggestedRuleImprovements && report.suggestedRuleImprovements.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-medium mt-4 mb-1 text-accent flex items-center">
+                        <ListChecks className="mr-2 h-5 w-5" />
+                        Suggested Rule Improvements
+                      </h3>
+                      <ul className="list-none p-3 bg-black/20 rounded-md border border-border/50 text-sm space-y-2">
+                        {report.suggestedRuleImprovements.map((rule, index) => (
+                          <li key={index} className="font-mono text-xs text-foreground/90 bg-black/30 p-2 rounded-sm border border-border/30">
+                            {rule}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {report.visualizationDataUri && (
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium mb-2 text-accent">Visualization</h3>
+                      <div className="relative aspect-video w-full overflow-hidden rounded-md border border-border shadow-lg">
+                        <Image 
+                            src={report.visualizationDataUri} 
+                            alt="Generated Visualization" 
+                            layout="fill"
+                            objectFit="contain" 
+                            className="bg-muted"
+                            unoptimized={report.visualizationDataUri.startsWith('data:')}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+              {!report && !isLoading && (
+                <div className="flex flex-col items-center justify-center h-full pt-16 text-center">
+                  <Sparkles className="h-12 w-12 text-muted-foreground/50" />
+                  <p className="mt-4 text-muted-foreground">Your generated report will be displayed here once processed.</p>
                 </div>
               )}
-            </>
-          )}
-          {!report && !isLoading && (
-            <div className="flex flex-col items-center justify-center h-64 text-center">
-              <Sparkles className="h-12 w-12 text-muted-foreground/50" />
-              <p className="mt-4 text-muted-foreground">Your generated report will be displayed here once processed.</p>
             </div>
-          )}
+          </ScrollArea>
         </CardContent>
       </Card>
     </div>
   );
 }
-

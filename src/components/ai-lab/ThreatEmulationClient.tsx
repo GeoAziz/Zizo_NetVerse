@@ -6,15 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea'; // Keep if needed for other parts, not directly used for scenario selection
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, PlayCircle, ShieldCheck, AlertTriangle, Activity, FileText, type LucideIcon } from 'lucide-react';
+import { Loader2, PlayCircle, ShieldCheck, AlertTriangle, Activity, FileText, type LucideIcon, Bot } from 'lucide-react';
 import { motion } from 'framer-motion';
 import IncidentReportForm from '@/components/incident-reporting/IncidentReportForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { analyzePacket, analyzeIncident } from '@/lib/aiLabApi';
+import { analyzePacket } from '@/lib/aiLabApi';
 
 type EmulationScenarioKey = 
   | 'simulated_malware' 
@@ -31,6 +30,7 @@ interface ScenarioDetail {
   description: string;
   icon: LucideIcon;
   mockSteps: string[];
+  mockPacket: any;
 }
 
 const scenarioDetails: Record<EmulationScenarioKey, ScenarioDetail> = {
@@ -44,7 +44,8 @@ const scenarioDetails: Record<EmulationScenarioKey, ScenarioDetail> = {
       "Monitoring for C2 communication attempts...",
       "Virtual EDR detected anomalous activity.",
       "Malware behavior successfully contained and logged."
-    ]
+    ],
+    mockPacket: { protocol: "TCP", sourceIp: "192.168.1.112", sourcePort: 49152, destIp: "104.22.58.117", destPort: 4444, summary: "Suspicious C2 beacon", action: "Blocked" },
   },
   port_scanning: { 
     name: 'Network Port Scanning', 
@@ -57,7 +58,8 @@ const scenarioDetails: Record<EmulationScenarioKey, ScenarioDetail> = {
       "Port 443 (HTTPS) found open on 192.168.1.10.",
       "Port 22 (SSH) found open on 192.168.1.15.",
       "Scan completed. 3 open ports identified."
-    ]
+    ],
+    mockPacket: { protocol: "TCP", sourceIp: "103.45.12.98", sourcePort: 54321, destIp: "192.168.1.10", destPort: 80, summary: "TCP SYN packet", action: "Flagged" },
   },
   packet_flooding: { 
     name: 'Packet Flooding (DDoS)', 
@@ -69,7 +71,8 @@ const scenarioDetails: Record<EmulationScenarioKey, ScenarioDetail> = {
       "Network monitoring shows increased traffic to target.",
       "Simulated firewall detected and mitigated flood after 30s.",
       "DDoS emulation concluded. Target remained responsive."
-    ]
+    ],
+    mockPacket: { protocol: "UDP", sourceIp: "203.0.113.55", sourcePort: 1234, destIp: "192.168.1.254", destPort: 53, summary: "High volume of UDP packets", action: "Blocked" },
   },
   mitm_attempt: { 
     name: 'Man-in-the-Middle Attempt', 
@@ -81,7 +84,8 @@ const scenarioDetails: Record<EmulationScenarioKey, ScenarioDetail> = {
       "Network intrusion detection system (NIDS) flagged suspicious ARP packets.",
       "MITM attempt blocked by NIDS.",
       "Emulation complete. Network integrity maintained."
-    ]
+    ],
+    mockPacket: { protocol: "ARP", summary: "Gratuitous ARP Reply", action: "Blocked" },
   },
   phishing_campaign: { 
     name: 'Phishing Campaign Simulation', 
@@ -94,7 +98,8 @@ const scenarioDetails: Record<EmulationScenarioKey, ScenarioDetail> = {
       "User 'v_user2' opened email and clicked mock malicious link.",
       "Phishing attempt on 'v_user2' logged. Endpoint protection blocked site.",
       "Campaign simulation concluded."
-    ]
+    ],
+    mockPacket: { protocol: "HTTP", sourceIp: "192.168.1.78", sourcePort: 51234, destIp: "45.33.32.156", destPort: 80, summary: "GET /login.php?user=v_user2", action: "Blocked" },
   },
   data_exfiltration: { 
     name: 'Data Exfiltration Simulation', 
@@ -106,7 +111,8 @@ const scenarioDetails: Record<EmulationScenarioKey, ScenarioDetail> = {
       "Data Loss Prevention (DLP) system detected unusual outbound transfer.",
       "Transfer blocked by DLP policy 'CONFIDENTIAL_DATA'.",
       "Exfiltration attempt logged and alerted."
-    ]
+    ],
+    mockPacket: { protocol: "FTP", sourceIp: "192.168.1.25", sourcePort: 21, destIp: "198.51.100.2", destPort: 990, summary: "FTP Data Transfer (Large Payload)", action: "Blocked" },
   },
 };
 
@@ -114,45 +120,53 @@ export default function ThreatEmulationClient() {
   const [selectedScenario, setSelectedScenario] = useState<EmulationScenarioKey>('simulated_malware');
   const [status, setStatus] = useState<EmulationStatus>('idle');
   const [emulationLog, setEmulationLog] = useState<string[]>([]);
-  const [targetScope, setTargetScope] = useState('');
+  const [targetScope, setTargetScope] =useState('');
   const { toast } = useToast();
 
   const handleRunEmulation = async () => {
     setStatus('running');
     const currentScenario = scenarioDetails[selectedScenario];
     setEmulationLog([`Starting emulation: ${currentScenario.name}...`]);
-    let stepDelay = 1000;
+
+    // Simulate steps with delay
+    let stepDelay = 800;
     currentScenario.mockSteps.forEach((step, index) => {
       setTimeout(() => {
         setEmulationLog(prev => [...prev, step]);
       }, stepDelay * (index + 1));
     });
-    // Call backend AI analysis for real data (example: analyzePacket)
-    try {
-      const aiResult = await analyzePacket({ scenario: selectedScenario, target: targetScope });
-      setEmulationLog(prev => [...prev, `AI Analysis: ${JSON.stringify(aiResult)}`]);
-    } catch (e) {
-      setEmulationLog(prev => [...prev, 'AI backend analysis failed.']);
-    }
-    setTimeout(() => {
-      const success = Math.random() > 0.15; // 85% success rate for simulation
-      if (success) {
-        setEmulationLog(prev => [...prev, `Emulation of ${currentScenario.name} completed successfully.`]);
-        setStatus('completed');
-        toast({
-          title: "Emulation Complete",
-          description: `${currentScenario.name} finished. Check logs for details.`,
-        });
-      } else {
-        setEmulationLog(prev => [...prev, `Error during ${currentScenario.name} emulation. Check system integrity.`]);
+
+    const totalDelay = stepDelay * (currentScenario.mockSteps.length + 1);
+
+    // After mock steps, call the real AI backend
+    setTimeout(async () => {
+      setEmulationLog(prev => [...prev, "Sending representative packet data to AI for analysis..."]);
+      try {
+        const packetData = { ...currentScenario.mockPacket, target: targetScope };
+        const aiResult = await analyzePacket(packetData);
+        setEmulationLog(prev => [...prev, `AI Analysis Complete: ${aiResult.analysis?.suspicionReason || 'Normal traffic detected.'}`]);
+
+        // Final completion message
+        setTimeout(() => {
+          setEmulationLog(prev => [...prev, `Emulation of ${currentScenario.name} completed successfully.`]);
+          setStatus('completed');
+          toast({
+            title: "Emulation Complete",
+            description: `${currentScenario.name} finished. Check logs for details.`,
+          });
+        }, stepDelay);
+
+      } catch (e: any) {
+        const errorMessage = e.response?.data?.detail || 'AI backend analysis failed.';
+        setEmulationLog(prev => [...prev, `Error: ${errorMessage}`]);
         setStatus('error');
         toast({
           title: "Emulation Error",
-          description: `An error occurred during the ${currentScenario.name} emulation.`,
+          description: `An error occurred during AI analysis.`,
           variant: "destructive",
         });
       }
-    }, stepDelay * (currentScenario.mockSteps.length + 1) + 500);
+    }, totalDelay);
   };
 
   const cardVariants = {
@@ -173,7 +187,7 @@ export default function ThreatEmulationClient() {
     <Tabs defaultValue="emulation" className="w-full">
       <TabsList className="grid w-full grid-cols-2 mb-6 bg-card border border-border/50">
         <TabsTrigger value="emulation"><PlayCircle className="mr-2 h-4 w-4"/>Threat Emulation</TabsTrigger>
-        <TabsTrigger value="reporting"><FileText className="mr-2 h-4 w-4"/>Incident Reporting</TabsTrigger>
+        <TabsTrigger value="reporting"><Bot className="mr-2 h-4 w-4"/>AI Incident Reporting</TabsTrigger>
       </TabsList>
 
       <TabsContent value="emulation">
@@ -269,7 +283,7 @@ export default function ThreatEmulationClient() {
                       <span className="text-primary/70 mr-1.5">&gt;</span>{log}
                     </motion.p>
                   ))}
-                   {status === 'running' && emulationLog.length > 0 && emulationLog.length < (scenarioDetails[selectedScenario]?.mockSteps.length || 0) +1 && (
+                   {status === 'running' && (
                      <motion.div 
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1}}
                         className="flex items-center text-xs text-yellow-400 font-mono mt-2"
@@ -300,4 +314,3 @@ export default function ThreatEmulationClient() {
     </Tabs>
   );
 }
-
