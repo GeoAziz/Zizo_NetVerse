@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     
     # Firebase Admin SDK credentials
     # The path to the service account key file.
-    # Set this in your .env file
-    GOOGLE_APPLICATION_CREDENTIALS: str = "path/to/your/serviceAccountKey.json"
+    # This path is relative to the root directory where you run the backend (src/backend).
+    GOOGLE_APPLICATION_CREDENTIALS: str = "core/serviceAccountKey.json"
 
     class Config:
         case_sensitive = True

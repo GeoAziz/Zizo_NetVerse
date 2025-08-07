@@ -26,6 +26,7 @@ I have generated the foundational Python code for your backend services. You can
             -   `auth.py`: An endpoint to verify a Firebase token, bridging Firebase Auth with our custom backend.
     -   `core/`: For application configuration.
         -   `config.py`: For managing environment variables and settings.
+        -   `serviceAccountKey.json`: **(New)** Your Firebase Admin credentials. **DO NOT COMMIT THIS FILE TO GIT.** It has been added to `.gitignore`.
     -   `services/`: For the business logic that your API endpoints will call.
         -   `network_capture.py`: A placeholder for the real packet-sniffing logic.
         -   `firebase_admin.py`: Logic to initialize the Firebase Admin SDK on your backend.
@@ -93,11 +94,8 @@ This is the hands-on part. I've given you the car's engine; now you need to inst
     ```
 
 **4. Set up Firebase Admin SDK:**
--   Go to your Firebase project console.
--   Go to `Project settings` > `Service accounts`.
--   Click "Generate new private key" and a JSON file will be downloaded.
--   **Securely** copy this file to your DigitalOcean server (e.g., into the `src/backend/core` directory). **Do not commit this file to Git.**
--   You will need to set an environment variable so your app can find it: `export GOOGLE_APPLICATION_CREDENTIALS="path/to/your/keyfile.json"`
+-   The file `src/backend/core/serviceAccountKey.json` is already configured.
+-   You now need to set an environment variable so your app can find it. The `config.py` file handles this automatically, but you **must** ensure you're running the backend from the `src/backend` directory. The configuration is set up to look for `core/serviceAccountKey.json`.
 
 **5. Run the Backend:**
 -   From the `src/backend` directory, start the FastAPI server using Uvicorn.
@@ -108,6 +106,6 @@ This is the hands-on part. I've given you the car's engine; now you need to inst
 -   `--reload` will automatically restart the server when you make code changes (great for development).
 
 **6. Connect Frontend to Backend:**
--   In your Next.js application, you will now make `fetch` requests to your DigitalOcean Droplet's IP address and port (e.g., `http://[your_droplet_ip]:8000/api/logs/network`).
+-   In your Next.js application, you will now make `fetch` requests to your DigitalOcean Droplet's IP address and port (e.g., `http://[your_droplet_ip]:8000/api/v1/...`). Remember to include the user's Firebase ID token in the Authorization header as a Bearer token.
 
 You have an incredible journey ahead. This guide provides the full architectural vision and the exact steps to get started. Keep the `#vybcoding` energy high, and build this masterpiece.
