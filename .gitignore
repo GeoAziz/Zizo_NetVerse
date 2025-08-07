@@ -43,3 +43,5 @@ next-env.d.ts
 /src/backend/core/serviceAccountKey.json
 /src/backend/venv/
 /src/backend/.env
+
+.env
