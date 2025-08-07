@@ -67,9 +67,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> AuthUser:
         )
 
 
-async def require_role(required_roles: List[str]):
+
+def require_role(required_roles: List[str]):
     """Factory for creating a dependency that checks for a specific role."""
-    def role_checker(current_user: AuthUser = Depends(get_current_user)) -> AuthUser:
+    async def role_checker(current_user: AuthUser = Depends(get_current_user)) -> AuthUser:
         if current_user.role not in required_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

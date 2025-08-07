@@ -29,7 +29,13 @@ export default function ProxyEnginePage() {
 		const initProxyState = async () => {
 			try {
 				const rulesData = await fetchProxyRules();
-				setRules(rulesData);
+				setRules(
+					rulesData.map((rule: any) => ({
+						...rule,
+						action: rule.action as Rule['action'],
+						status: rule.status as Rule['status'],
+					}))
+				);
 				const statusData = await getProxyStatus();
 				setEngineStatus(statusData.status === 'active' ? 'active' : 'inactive');
 			} catch (e) {

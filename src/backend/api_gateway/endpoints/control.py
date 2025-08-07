@@ -2,13 +2,16 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, IPvAnyAddress
 import subprocess
 import time
-from .auth import require_analyst # Require at least analyst role
+from .auth import require_role
+
+# Create the dependency instance for analyst or admin
+require_analyst = require_role(["analyst", "admin"])
 
 router = APIRouter()
 
 RATE_LIMIT = {}
-def rate_limiter(request: Request):
-    ip = request.client.host
+async def rate_limiter(req: Request):
+    ip = req.client.host
     now = time.time()
     window = 10  # seconds
     max_requests = 5
@@ -22,8 +25,13 @@ def rate_limiter(request: Request):
 class BlockIPRequest(BaseModel):
     ip: IPvAnyAddress
 
-@router.post("/control/block-ip", tags=["Control"], dependencies=[Depends(require_analyst)])
-async def block_ip(request: BlockIPRequest, req: Request = Depends(rate_limiter)):
+@router.post("/control/block-ip", tags=["Control"])
+async def block_ip(
+    request: BlockIPRequest,
+    req: Request,
+    user=Depends(require_analyst),
+    _: None = Depends(rate_limiter)
+):
     """
     Block an IP address using system firewall (iptables).
     """

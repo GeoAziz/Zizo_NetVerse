@@ -19,16 +19,16 @@ def rate_limiter(request: Request):
         raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
     RATE_LIMIT[ip].append(now)
 
-@router.post("/proxy/start", tags=["Proxy"], dependencies=[Depends(require_admin)])
-async def start_proxy(req: Request = Depends(rate_limiter)):
+@router.post("/proxy/start", tags=["Proxy"], dependencies=[Depends(require_admin), Depends(rate_limiter)])
+async def start_proxy():
     try:
         asyncio.create_task(proxy_engine.start())
         return {"status": "started"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/proxy/stop", tags=["Proxy"], dependencies=[Depends(require_admin)])
-async def stop_proxy(req: Request = Depends(rate_limiter)):
+@router.post("/proxy/stop", tags=["Proxy"], dependencies=[Depends(require_admin), Depends(rate_limiter)])
+async def stop_proxy():
     try:
         await proxy_engine.shutdown()
         return {"status": "stopped"}
