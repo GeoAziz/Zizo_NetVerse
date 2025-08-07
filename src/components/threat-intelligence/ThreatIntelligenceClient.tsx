@@ -2,17 +2,18 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import ThreatCard, { type Threat } from './ThreatCard';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Bug, Fish, ShieldOff, DatabaseZap, TerminalSquare, AlertOctagon, type LucideIcon } from 'lucide-react';
-import { generateThreatIntel, type GenerateThreatIntelInput, type ThreatIntelEntry } from '@/ai/flows/generate-threat-intel-flow';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 
-const threatTypeToIconMap: Record<ThreatIntelEntry['type'], LucideIcon | undefined> = {
+const threatTypeToIconMap: Record<Threat['type'], LucideIcon | undefined> = {
   Malware: Bug,
   Phishing: Fish,
   DDoS: ShieldOff,
@@ -57,30 +58,35 @@ export default function ThreatIntelligenceClient() {
   const fetchThreats = async () => {
     setIsLoading(true);
     try {
-      // Request 6 threats to have a good variety
-      const result = await generateThreatIntel({ count: 6, locale: 'en' });
-      if (result && result.threats) {
-        const threatsWithIcons = result.threats.map(t => ({
-          ...t,
-          icon: threatTypeToIconMap[t.type] || undefined,
-        }));
-        setThreats(threatsWithIcons);
-      } else {
-        setThreats([]);
+      const threatsCollection = collection(db, 'threats');
+      const threatsSnapshot = await getDocs(threatsCollection);
+      const threatsList = threatsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Threat[];
+      
+      const threatsWithIcons = threatsList.map(t => ({
+        ...t,
+        icon: threatTypeToIconMap[t.type] || undefined,
+      }));
+      setThreats(threatsWithIcons);
+      
+      if (threatsWithIcons.length === 0) {
         toast({
-          title: "No Threats Generated",
-          description: "The AI did not return any threat data.",
+          title: "Threat Feed Empty",
+          description: "No threat intelligence data found in the database. Add data to the 'threats' collection in Firestore.",
           variant: "default",
         });
       }
+
     } catch (error) {
-      console.error("Error generating threat intel:", error);
+      console.error("Error fetching threat intel:", error);
       toast({
-        title: "Error Generating Threats",
-        description: error instanceof Error ? error.message : "An unknown error occurred while fetching threat intelligence.",
+        title: "Error Fetching Threats",
+        description: error instanceof Error ? error.message : "An unknown error occurred while fetching from Firestore.",
         variant: "destructive",
       });
-      setThreats([]); // Clear threats on error
+      setThreats([]);
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +151,7 @@ export default function ThreatIntelligenceClient() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center h-64">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="mt-4 text-muted-foreground">Generating threat intelligence feed...</p>
+          <p className="mt-4 text-muted-foreground">Connecting to Threat Database...</p>
         </div>
       ) : filteredThreats.length > 0 ? (
         <motion.div
@@ -160,7 +166,7 @@ export default function ThreatIntelligenceClient() {
         </motion.div>
       ) : (
         <div className="text-center py-10">
-          <p className="text-xl text-muted-foreground">No threats match your criteria or an error occurred.</p>
+          <p className="text-xl text-muted-foreground">No threats match your criteria or database is empty.</p>
           <Button onClick={fetchThreats} variant="link" className="mt-2">Try refreshing</Button>
         </div>
       )}

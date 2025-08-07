@@ -1,10 +1,38 @@
+
+'use client';
 import type { PropsWithChildren } from 'react';
-import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarTrigger, SidebarInset, SidebarRail } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar';
 import AppSidebar from './Sidebar';
 import AppHeader from './Header';
 import { APP_NAME } from '@/lib/constants';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 
 export default function AppLayout({ children }: PropsWithChildren) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="ml-4 text-lg text-muted-foreground">Authenticating...</p>
+        </div>
+    );
+  }
+
+  if (!user) {
+    return null; // or a fallback component if you want to avoid a flash of content
+  }
+
   return (
     <SidebarProvider defaultOpen>
       <Sidebar collapsible="icon" variant="sidebar" className="border-r border-sidebar-border" >
@@ -23,13 +51,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
           © {new Date().getFullYear()} {APP_NAME}
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
+      <div className="flex h-screen flex-col peer-data-[variant=sidebar]:pl-12 peer-data-[variant=sidebar]:peer-data-[state=expanded]:pl-64">
         <AppHeader />
         <main className="flex-1 p-6 overflow-auto">
           {children}
         </main>
-      </SidebarInset>
-      <SidebarRail />
+      </div>
     </SidebarProvider>
   );
 }

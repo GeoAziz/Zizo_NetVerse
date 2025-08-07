@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Globe, ListFilter, BotMessageSquare, Network, Settings2, Map, Cpu, GitFork, ShieldAlert, Terminal } from 'lucide-react';
+import { LayoutDashboard, Globe, ListFilter, BotMessageSquare, Network, Settings2, Map, Cpu, GitFork, ShieldAlert, Terminal, LogOut } from 'lucide-react';
 
 export type NavLink = {
   href: string;
@@ -86,4 +86,3 @@ export const NAV_LINKS: NavLink[] = [
     description: 'Manage application settings, user roles, and visual themes.'
   },
 ];
-
