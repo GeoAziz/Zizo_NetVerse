@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from services.proxy_engine import proxy_engine
 import asyncio
 import time
+from .auth import require_admin # Import the admin role dependency
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ def rate_limiter(request: Request):
         raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
     RATE_LIMIT[ip].append(now)
 
-@router.post("/proxy/start", tags=["Proxy"])
+@router.post("/proxy/start", tags=["Proxy"], dependencies=[Depends(require_admin)])
 async def start_proxy(req: Request = Depends(rate_limiter)):
     try:
         asyncio.create_task(proxy_engine.start())
@@ -26,7 +27,7 @@ async def start_proxy(req: Request = Depends(rate_limiter)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/proxy/stop", tags=["Proxy"])
+@router.post("/proxy/stop", tags=["Proxy"], dependencies=[Depends(require_admin)])
 async def stop_proxy(req: Request = Depends(rate_limiter)):
     try:
         await proxy_engine.shutdown()

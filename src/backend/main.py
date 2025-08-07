@@ -1,7 +1,20 @@
 # src/backend/main.py
 
 from fastapi import FastAPI
-from api_gateway.endpoints import auth, logs, websockets, control, proxy, ai_analysis, threat_feeds, siem, alerts, devices, control_device
+from api_gateway.endpoints import (
+    auth,
+    logs,
+    websockets,
+    control,
+    proxy,
+    ai_analysis,
+    threat_feeds,
+    siem,
+    alerts,
+    devices,
+    control_device,
+    users, # Added users endpoint
+)
 from core.config import settings
 from services import firebase_admin
 from services.message_queue import message_queue
@@ -72,6 +85,7 @@ app.include_router(siem.router, prefix=settings.API_V1_STR, tags=["SIEM Integrat
 app.include_router(alerts.router, prefix=settings.API_V1_STR, tags=["Alerts"])
 app.include_router(devices.router, prefix=settings.API_V1_STR, tags=["Devices"])
 app.include_router(control_device.router, prefix=settings.API_V1_STR, tags=["Device Control"])
+app.include_router(users.router, prefix=settings.API_V1_STR, tags=["User Management"]) # Added users router
 
 
 @app.on_event("startup")
@@ -126,4 +140,3 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
-

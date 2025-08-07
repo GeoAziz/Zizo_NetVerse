@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Globe, ListFilter, BotMessageSquare, Network, Settings2, Map, Cpu, GitFork, ShieldAlert, Terminal, LogOut } from 'lucide-react';
+import { LayoutDashboard, Globe, ListFilter, BotMessageSquare, Network, Settings2, Map, Cpu, GitFork, ShieldAlert, Terminal, LogOut, Users } from 'lucide-react';
 
 export type NavLink = {
   href: string;
@@ -8,6 +8,7 @@ export type NavLink = {
   icon: LucideIcon;
   longLabel?: string;
   description?: string;
+  adminOnly?: boolean;
 };
 
 export const APP_NAME = "Zizo_NetVerse";
@@ -83,6 +84,7 @@ export const NAV_LINKS: NavLink[] = [
     label: 'Settings',
     icon: Settings2,
     longLabel: 'System Configuration',
-    description: 'Manage application settings, user roles, and visual themes.'
+    description: 'Manage application settings, user roles, and visual themes.',
+    adminOnly: true, // This page is now admin-only
   },
 ];

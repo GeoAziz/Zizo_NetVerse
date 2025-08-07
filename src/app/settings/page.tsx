@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PageHeader from '@/components/shared/PageHeader';
-import { Settings2, Palette, Bell, Brain, Cog } from 'lucide-react';
+import { Settings2, Palette, Bell, Brain, Cog, Users, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -12,10 +12,105 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
-import AppLayout from '@/components/layout/AppLayout'; // Import AppLayout
+import AppLayout from '@/components/layout/AppLayout';
+import { useAuth, type UserRole } from '@/contexts/AuthContext';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { listUsers, assignRole } from '@/lib/userApi';
+import { useRouter } from 'next/navigation';
+
+interface UserRecord {
+  uid: string;
+  email: string | null;
+  role: UserRole;
+}
+
+function UserManagementTab() {
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const { forceRefreshUserToken } = useAuth();
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const userList = await listUsers();
+      setUsers(userList);
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      toast({ title: "Error", description: "Could not fetch user list.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleRoleChange = async (uid: string, role: UserRole) => {
+    try {
+      await assignRole(uid, role);
+      toast({ title: "Success", description: `User role updated to ${role}.` });
+      // Refresh the user list to show the new role
+      await fetchUsers();
+      // Force the current user's token to refresh if they changed their own role
+      await forceRefreshUserToken();
+    } catch (error) {
+      console.error("Failed to assign role:", error);
+      toast({ title: "Error", description: "Failed to update user role.", variant: "destructive" });
+    }
+  };
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin h-8 w-8 text-accent" /></div>;
+  }
+
+  return (
+    <Card className="shadow-lg">
+      <CardHeader>
+        <CardTitle>User Management</CardTitle>
+        <CardDescription>Assign roles to users in your organization.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Email</TableHead>
+              <TableHead>UID</TableHead>
+              <TableHead className="w-[180px]">Role</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow key={user.uid}>
+                <TableCell className="font-medium">{user.email || 'N/A'}</TableCell>
+                <TableCell className="text-muted-foreground font-mono text-xs">{user.uid}</TableCell>
+                <TableCell>
+                  <Select value={user.role} onValueChange={(value) => handleRoleChange(user.uid, value as UserRole)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="analyst">Analyst</SelectItem>
+                      <SelectItem value="viewer">Viewer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const { role, loading } = useAuth();
+  const router = useRouter();
 
   const [username, setUsername] = useState("AnalystUser01");
   const [timezone, setTimezone] = useState("utc-5");
@@ -27,6 +122,13 @@ export default function SettingsPage() {
   const [emailCritical, setEmailCritical] = useState(true);
   const [inAppHigh, setInAppHigh] = useState(true);
   const [soundAlerts, setSoundAlerts] = useState("subtle");
+
+  useEffect(() => {
+    if (!loading && role !== 'admin') {
+      toast({ title: 'Access Denied', description: 'You do not have permission to view this page.', variant: 'destructive'});
+      router.push('/dashboard');
+    }
+  }, [role, loading, router, toast]);
 
   const handleSave = (settingsCategory: string) => {
     toast({
@@ -45,8 +147,18 @@ export default function SettingsPage() {
     });
   }
 
+  if (loading || role !== 'admin') {
+    return (
+      <AppLayout>
+        <div className="flex justify-center items-center h-full">
+            <Loader2 className="animate-spin h-10 w-10 text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
-    <AppLayout> {/* Wrap content with AppLayout */}
+    <AppLayout>
       <div>
         <PageHeader
           title="Application Settings"
@@ -55,8 +167,9 @@ export default function SettingsPage() {
         />
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 mb-6">
             <TabsTrigger value="general"><Cog className="mr-2 h-4 w-4" />General</TabsTrigger>
+            <TabsTrigger value="users"><Users className="mr-2 h-4 w-4" />User Management</TabsTrigger>
             <TabsTrigger value="aiConfig"><Brain className="mr-2 h-4 w-4" />AI Configuration</TabsTrigger>
             <TabsTrigger value="theme"><Palette className="mr-2 h-4 w-4" />Theme & Appearance</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4" />Notifications</TabsTrigger>
@@ -94,6 +207,10 @@ export default function SettingsPage() {
                 <Button onClick={() => handleSave("General")} className="bg-primary hover:bg-primary/90 text-primary-foreground">Save General Settings</Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="users">
+            <UserManagementTab />
           </TabsContent>
 
           <TabsContent value="aiConfig">
