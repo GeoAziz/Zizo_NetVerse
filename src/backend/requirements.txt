@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+firebase-admin
+scapy
+# Add other dependencies like 'influxdb-client' for a time-series DB
+# or 'pymongo' for MongoDB as you build out the services.
