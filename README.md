@@ -1,6 +1,9 @@
+
 # Zizo_NetVerse
 
 A next-generation, sci-fi themed cybersecurity command deck.
+
+For a complete overview of the project vision, features, architecture, and value proposition, please see the **[Project Overview Document](./docs/project.md)**.
 
 ## Essence & Purpose
 
