@@ -6,7 +6,7 @@ import Link from 'next/link';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Activity, AlertTriangle, BarChartHorizontalBig, Zap, Maximize, ChevronRight, Bell, Server } from 'lucide-react';
+import { Activity, AlertTriangle, BarChartHorizontalBig, Zap, Maximize, ChevronRight, Bell, Server, Loader2 } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PolarRadiusAxis } from 'recharts';
@@ -15,6 +15,10 @@ import { NAV_LINKS, APP_NAME } from '@/lib/constants';
 import { motion } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchLogsSummary } from '@/lib/logsApi';
+import { useToast } from '@/hooks/use-toast';
+
 
 // Helper component for client-side time formatting
 const ClientSideFormattedTime: FC<{ isoTimestamp: string }> = ({ isoTimestamp }) => {
@@ -30,12 +34,12 @@ const ClientSideFormattedTime: FC<{ isoTimestamp: string }> = ({ isoTimestamp })
 
 
 const initialRadarChartData = [
-  { subject: 'Malware', A: 120, B: 110, fullMark: 150 },
-  { subject: 'Phishing', A: 98, B: 130, fullMark: 150 },
-  { subject: 'DDoS', A: 86, B: 130, fullMark: 150 },
-  { subject: 'SQLi', A: 99, B: 100, fullMark: 150 },
-  { subject: 'Zero-Day', A: 85, B: 90, fullMark: 150 },
-  { subject: 'Ransomware', A: 65, B: 85, fullMark: 150 },
+  { subject: 'Malware', A: 0, B: 110, fullMark: 150 },
+  { subject: 'Phishing', A: 0, B: 130, fullMark: 150 },
+  { subject: 'DDoS', A: 0, B: 130, fullMark: 150 },
+  { subject: 'SQLi', A: 0, B: 100, fullMark: 150 },
+  { subject: 'Zero-Day', A: 0, B: 90, fullMark: 150 },
+  { subject: 'Ransomware', A: 0, B: 85, fullMark: 150 },
 ];
 
 const radarChartConfig = {
@@ -49,14 +53,7 @@ const radarChartConfig = {
   },
 } satisfies ChartConfig;
 
-const initialVitalsChartData = [
-  { name: '10:00', cpu: 30, memory: 55, network: 20 },
-  { name: '10:05', cpu: 35, memory: 50, network: 25 },
-  { name: '10:10', cpu: 40, memory: 60, network: 30 },
-  { name: '10:15', cpu: 30, memory: 58, network: 22 },
-  { name: '10:20', cpu: 50, memory: 65, network: 40 },
-  { name: '10:25', cpu: 45, memory: 62, network: 35 },
-];
+const initialVitalsChartData = Array(6).fill({ name: '00:00', cpu: 0, memory: 0, network: 0 });
 
 const vitalsChartConfig = {
   cpu: {
@@ -84,90 +81,111 @@ type MockNotification = {
   read: boolean;
 };
 
-// Initialize with ISO strings for timestamps
+// This will be replaced by dynamic data from websockets later
 const initialNotifications: MockNotification[] = [
-  { id: 'n1', title: 'Critical Alert: Data Breach Attempt', description: 'Suspicious outbound connection from SRV-03 to known C2 server blocked.', timestamp: new Date(Date.now() - 5 * 60000).toISOString(), severity: 'Critical', read: false },
-  { id: 'n2', title: 'High: Malware Detected', description: 'Malware signature "KryllWorm.X" detected on WKSTN-112. Quarantine pending.', timestamp: new Date(Date.now() - 15 * 60000).toISOString(), severity: 'High', read: false },
-  { id: 'n3', title: 'Medium: Port Scan Detected', description: 'IP 103.45.12.98 scanned multiple ports on FW-MAIN.', timestamp: new Date(Date.now() - 45 * 60000).toISOString(), severity: 'Medium', read: true },
-  { id: 'n4', title: 'Info: System Update Applied', description: 'Security patch ZN-2025-003 applied to all core servers.', timestamp: new Date(Date.now() - 2 * 3600000).toISOString(), severity: 'Info', read: true },
+      { id: 'n1', title: 'Critical Alert: Data Breach Attempt', description: 'Suspicious outbound connection from SRV-03 to known C2 server blocked.', timestamp: new Date(Date.now() - 5 * 60000).toISOString(), severity: 'Critical', read: false },
+      { id: 'n2', title: 'High: Malware Detected', description: 'Malware signature "KryllWorm.X" detected on WKSTN-112. Quarantine pending.', timestamp: new Date(Date.now() - 15 * 60000).toISOString(), severity: 'High', read: false },
+      { id: 'n3', title: 'Medium: Port Scan Detected', description: 'IP 103.45.12.98 scanned multiple ports on FW-MAIN.', timestamp: new Date(Date.now() - 45 * 60000).toISOString(), severity: 'Medium', read: true },
+      { id: 'n4', title: 'Info: System Update Applied', description: 'Security patch ZN-2025-003 applied to all core servers.', timestamp: new Date(Date.now() - 2 * 3600000).toISOString(), severity: 'Info', read: true },
+      { id: 'n5', title: 'Low: Unusual Login Pattern', description: 'User "j.doe" logged in from a new geographic location.', timestamp: new Date(Date.now() - 6 * 3600000).toISOString(), severity: 'Low', read: true },
 ];
 
-
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
+  // State for stats
   const [activeThreats, setActiveThreats] = useState<number | null>(null);
   const [packetsIntercepted, setPacketsIntercepted] = useState<number | null>(null);
   const [connectedDevices, setConnectedDevices] = useState<number | null>(null);
+
+  // State for charts
   const [radarChartData, setRadarChartData] = useState(initialRadarChartData);
   const [vitalsChartData, setVitalsChartData] = useState(initialVitalsChartData);
-  const [notifications, setNotifications] = useState<MockNotification[]>([]); 
+
+  // Notifications remain client-side for now
+  const [notifications, setNotifications] = useState<MockNotification[]>(initialNotifications); 
 
   useEffect(() => {
-    // Initialize stats only on client
-    setActiveThreats(Math.floor(Math.random() * 20) + 5);
-    setPacketsIntercepted(Math.floor(Math.random() * 500000) + 1000000);
-    setConnectedDevices(Math.floor(Math.random() * 100) + 50);
+    if (!user) return;
 
-    // Client-side initialization of notifications
-    const now = Date.now();
-    setNotifications([
-      { id: 'n1', title: 'Critical Alert: Data Breach Attempt', description: 'Suspicious outbound connection from SRV-03 to known C2 server blocked.', timestamp: new Date(now - 5 * 60000).toISOString(), severity: 'Critical', read: false },
-      { id: 'n2', title: 'High: Malware Detected', description: 'Malware signature "KryllWorm.X" detected on WKSTN-112. Quarantine pending.', timestamp: new Date(now - 15 * 60000).toISOString(), severity: 'High', read: false },
-      { id: 'n3', title: 'Medium: Port Scan Detected', description: 'IP 103.45.12.98 scanned multiple ports on FW-MAIN.', timestamp: new Date(now - 45 * 60000).toISOString(), severity: 'Medium', read: true },
-      { id: 'n4', title: 'Info: System Update Applied', description: 'Security patch ZN-2025-003 applied to all core servers.', timestamp: new Date(now - 2 * 3600000).toISOString(), severity: 'Info', read: true },
-      { id: 'n5', title: 'Low: Unusual Login Pattern', description: 'User "j.doe" logged in from a new geographic location.', timestamp: new Date(now - 6 * 3600000).toISOString(), severity: 'Low', read: true },
-    ]);
+    // Fetch initial summary data
+    const getInitialData = async () => {
+      try {
+        const summary = await fetchLogsSummary();
+        setPacketsIntercepted(summary.total_packets || 0);
+        // Placeholder for threats and devices, as summary doesn't provide them yet
+        setActiveThreats(Object.keys(summary.threat_indicators || {}).length);
+        setConnectedDevices((Object.keys(summary.top_source_ips || {}).length + Object.keys(summary.top_dest_ips || {}).length) || 10);
+        
+        // Update radar chart with protocol data
+        setRadarChartData(prevData => {
+            const protocolCounts = summary.protocols || {};
+            return prevData.map(item => {
+                const protocolKey = item.subject.toUpperCase();
+                return {
+                    ...item,
+                    A: protocolCounts[protocolKey] || 0
+                }
+            })
+        });
 
-
-    const threatInterval = setInterval(() => {
-      setActiveThreats(prev => prev !== null ? Math.max(0, prev + Math.floor(Math.random() * 6) - 3) : Math.floor(Math.random() * 20) + 5);
-    }, 3000);
-
-    const packetInterval = setInterval(() => {
-      setPacketsIntercepted(prev => prev !== null ? prev + Math.floor(Math.random() * 15000) + 5000 : Math.floor(Math.random() * 500000) + 1000000);
-    }, 2000);
-    
-    const deviceInterval = setInterval(() => {
-      setConnectedDevices(prev => prev !== null ? Math.max(10, prev + Math.floor(Math.random() * 10) - 5) : Math.floor(Math.random() * 100) + 50);
-    }, 7000);
-
-    const radarInterval = setInterval(() => {
-      setRadarChartData(prevData =>
-        prevData.map(item => ({
-          ...item,
-          A: Math.min(item.fullMark, Math.max(0, item.A + Math.floor(Math.random() * 20) - 10)),
-          B: Math.min(item.fullMark, Math.max(0, item.B + Math.floor(Math.random() * 10) - 5)),
-        }))
-      );
-    }, 5000);
-
-    const vitalsInterval = setInterval(() => {
-      setVitalsChartData(prevData => {
-        const lastDataPoint = prevData[prevData.length - 1];
-        const timeParts = typeof lastDataPoint.name === 'string' ? lastDataPoint.name.split(':') : ['0', '0'];
-        const date = new Date();
-        date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
-
-        const newTimeDate = new Date(date.getTime() + 5 * 60000); 
-        const newTime = newTimeDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-        const newDataPoint = {
-          name: newTime,
-          cpu: Math.min(100, Math.max(10, lastDataPoint.cpu + Math.floor(Math.random() * 20) - 10)),
-          memory: Math.min(100, Math.max(20, lastDataPoint.memory + Math.floor(Math.random() * 10) - 5)),
-          network: Math.min(100, Math.max(5, lastDataPoint.network + Math.floor(Math.random() * 15) - 7)),
-        };
-        return [...prevData.slice(1), newDataPoint];
-      });
-    }, 4000);
-
-    return () => {
-      clearInterval(threatInterval);
-      clearInterval(packetInterval);
-      clearInterval(deviceInterval);
-      clearInterval(radarInterval);
-      clearInterval(vitalsInterval);
+      } catch (error) {
+        toast({ title: "Error", description: "Could not fetch dashboard summary data from backend.", variant: "destructive" });
+      }
     };
-  }, []);
+
+    getInitialData();
+
+    // Setup WebSocket for live updates
+    let ws: WebSocket | null = null;
+    const connectWebSocket = async () => {
+        const token = await user.getIdToken();
+        ws = new WebSocket(`${process.env.NEXT_PUBLIC_API_BASE_WS || 'ws://localhost:8000/api/v1'}/ws/system/status?token=${token}`);
+
+        ws.onopen = () => {
+          toast({ title: "Dashboard Stream Connected", description: "Receiving live system vitals."});
+        };
+
+        ws.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          if (message.type === 'system_status') {
+            const { capture_stats } = message.data;
+            setPacketsIntercepted(capture_stats.packet_count);
+
+            // Simulate vitals from capture stats for now
+            setVitalsChartData(prevData => {
+              const newTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+              const newDataPoint = {
+                name: newTime,
+                cpu: (capture_stats.packet_count % 50) + 20, // mock cpu
+                memory: (capture_stats.packet_count % 40) + 40, // mock memory
+                network: (capture_stats.packet_count % 30) + 10, // mock network
+              };
+              return [...prevData.slice(1), newDataPoint];
+            });
+          }
+        };
+
+        ws.onclose = () => {
+          console.log("Dashboard WebSocket disconnected. Reconnecting...");
+          setTimeout(connectWebSocket, 5000);
+        };
+        
+        ws.onerror = (err) => {
+            console.error("Dashboard WebSocket error:", err);
+            toast({ title: "Dashboard Stream Error", description: "Connection to live vitals failed.", variant: "destructive"});
+            ws?.close();
+        }
+    }
+    
+    connectWebSocket();
+    
+    return () => {
+      ws?.close();
+    };
+
+  }, [user, toast]);
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -211,7 +229,7 @@ export default function DashboardPage() {
                 <AlertTriangle className="h-5 w-5 text-destructive animate-pulse" />
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">{activeThreats !== null ? activeThreats : '...'}</div>
+                <div className="text-4xl font-bold">{activeThreats !== null ? activeThreats : <Loader2 className="h-8 w-8 animate-spin" />}</div>
                 <p className="text-xs text-muted-foreground">Real-time critical alerts</p>
               </CardContent>
             </Card>
@@ -224,7 +242,7 @@ export default function DashboardPage() {
                 <BarChartHorizontalBig className="h-5 w-5 text-accent" />
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">{packetsIntercepted !== null ? (packetsIntercepted / 1000000).toFixed(1) + 'M' : '...'}</div>
+                <div className="text-4xl font-bold">{packetsIntercepted !== null ? (packetsIntercepted / 1000000).toFixed(1) + 'M' : <Loader2 className="h-8 w-8 animate-spin" />}</div>
                 <p className="text-xs text-muted-foreground">Total processed data volume</p>
               </CardContent>
             </Card>
@@ -237,7 +255,7 @@ export default function DashboardPage() {
                 <Server className="h-5 w-5 text-foreground/70" />
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">{connectedDevices !== null ? connectedDevices : '...'}</div>
+                <div className="text-4xl font-bold">{connectedDevices !== null ? connectedDevices : <Loader2 className="h-8 w-8 animate-spin" />}</div>
                 <p className="text-xs text-muted-foreground">Total devices on network</p>
               </CardContent>
             </Card>
@@ -403,7 +421,3 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
-
-    
-
-    
