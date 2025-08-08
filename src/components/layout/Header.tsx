@@ -6,7 +6,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { APP_NAME } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
-import { Clock, LogOut } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '../ui/button';
 import { useRouter } from 'next/navigation';

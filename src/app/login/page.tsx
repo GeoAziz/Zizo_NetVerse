@@ -71,7 +71,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background to-indigo-900/30 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background to-indigo-900/30 p-4 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
       <motion.div
         className="absolute inset-0 -z-10 overflow-hidden"
         initial={{ opacity: 0 }}
@@ -104,7 +104,7 @@ export default function LoginPage() {
                   <Label htmlFor="email-login" className="text-muted-foreground flex items-center">
                      Agent ID / Email
                   </Label>
-                  <Input id="email-login" type="email" placeholder="agent.id@zizonetverse.ops" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-input/70 border-border focus:ring-accent placeholder:text-muted-foreground/70" />
+                  <Input id="email-login" type="email" placeholder="agent.id@netverse.io" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-input/70 border-border focus:ring-accent placeholder:text-muted-foreground/70" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-login" className="text-muted-foreground flex items-center">

@@ -40,7 +40,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
   // If the user is loaded but has no role yet, they are not fully authenticated.
   // This can happen for a split second while claims are loading.
   if (!user || !role) {
-    return null; // or a fallback component to avoid a flash of content
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg text-muted-foreground">Finalizing session...</p>
+      </div>
+    );
   }
 
   return (
@@ -63,7 +68,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
       </Sidebar>
       <div className="flex h-screen flex-col peer-data-[variant=sidebar]:pl-12 peer-data-[variant=sidebar]:peer-data-[state=expanded]:pl-64">
         <AppHeader />
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-auto bg-background/95 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
           {children}
         </main>
       </div>

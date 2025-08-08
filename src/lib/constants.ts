@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Globe, ListFilter, BotMessageSquare, Network, Settings2, Map, Cpu, GitFork, ShieldAlert, Terminal, LogOut, Users } from 'lucide-react';
+import { LayoutDashboard, Globe, ListFilter, BotMessageSquare, Network, Settings2, Map, Cpu, GitFork, ShieldAlert, Terminal, LogOut, Users, FileText } from 'lucide-react';
 
 export type NavLink = {
   href: string;

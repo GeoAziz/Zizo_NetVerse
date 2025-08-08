@@ -6,13 +6,13 @@ import { usePathname } from 'next/navigation';
 import { NAV_LINKS, type NavLink } from '@/lib/constants';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, type UserRole } from '@/contexts/AuthContext';
 import { LogOut } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useRouter } from 'next/navigation';
 
 // Function to filter links based on user role
-const getVisibleLinks = (role: string | null): NavLink[] => {
+const getVisibleLinks = (role: UserRole | null): NavLink[] => {
   if (!role) return [];
 
   // Viewers only see the dashboard
@@ -20,13 +20,12 @@ const getVisibleLinks = (role: string | null): NavLink[] => {
     return NAV_LINKS.filter(link => link.href === '/dashboard');
   }
 
-  // Admins and Analysts see all links that are NOT viewer-only (if any were defined)
-  // And Admins see admin-only links
+  // Admins see everything, Analysts see everything except admin-only links
   return NAV_LINKS.filter(link => {
     if (link.adminOnly) {
       return role === 'admin';
     }
-    return true; // Show all other links to admins and analysts
+    return true; // Show all other links
   });
 };
 
