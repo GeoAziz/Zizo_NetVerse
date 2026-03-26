@@ -45,3 +45,7 @@ next-env.d.ts
 /src/backend/.env
 
 .env
+.venv
+node_modules
+.github
+src/venv/
