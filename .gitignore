@@ -1,51 +1,380 @@
+################################################################################
+# Global Ignore Patterns
+################################################################################
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+################################################################################
+# Dependencies
+################################################################################
+
+# Node.js
 /node_modules
 /.pnp
 .pnp.js
 .yarn/install-state.gz
+/node_modules/
+npm-shrinkwrap.json
+package-lock.json
 
-# testing
-/coverage
+# Python
+/venv/
+/.venv/
+/env/
+/.env/
+/src/backend/venv/
+/src/backend/.venv/
+/src/backend/env/
+/src/venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
 
-# next.js
+# Virtual environments in any location
+venv/*
+.venv/*
+ENV/*
+env/*
+
+################################################################################
+# Build & Output Directories
+################################################################################
+
+# Next.js
 /.next/
 /out/
+/next-env.d.ts
+.next/
+.vercel/
 
-# production
-/build
+# Build artifacts
+/build/
+/dist/
+/production/
 
-# misc
-.DS_Store
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Cache directories
+.cache/
+.eslintcache
+.turbo
+.turbopack
+
+################################################################################
+# Environment & Secrets
+################################################################################
+
+# Environment variables (NEVER commit these!)
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env*.local
+.env.*.local
+
+# Firebase & Credentials
+/src/backend/core/serviceAccountKey.json
+firebase-key.json
+serviceAccountKey.json
+credentials.json
 *.pem
+*.key
+*.cert
 
-# debug
+# API Keys & Tokens
+.config
+.apikey
+.token
+
+################################################################################
+# IDE & Editor
+################################################################################
+
+# VSCode
+.vscode/
+*.code-workspace
+.history/
+.vscode-test/
+
+# JetBrains IDEs
+.idea/
+.idea_modules/
+*.iml
+*.iws
+*.ipr
+*.jks
+*.keystore
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+.vim
+*.swp
+*.swo
+*~
+.vimrc
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Visual Studio
+.vs/
+.vscode/
+.DS_Store
+
+################################################################################
+# OS & System Files
+################################################################################
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+
+################################################################################
+# Logs & Debug
+################################################################################
+
+# Node.js logging
 npm-debug.log*
+npm-error.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+pnpm-error.log*
+lerna-debug.log*
 
-# local env files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Python logging
+*.log
+logs/
+*.log.*
 
-# vercel
-.vercel
+# System logs
+*.log
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# Application logs
+src/backend/logs/
+logs/
+log/
 
-# Zizo_NetVerse specific
+# Test outputs
+test-results/
+test_logs.sh
+test_log.sh
+
+################################################################################
+# Testing & Coverage
+################################################################################
+
+# Jest & Testing Library
+/coverage/
+.nyc_output/
+junit.xml
+test-results/
+
+# E2E Testing
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Playwright
+/tests/test-results/
+/tests/playwright/.cache/
+
+################################################################################
+# Database & Data
+################################################################################
+
+# SQLite
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Data files
+*.sql
+data/
+database/
+
+################################################################################
+# Temporary & Vendor
+################################################################################
+
+# npm/yarn temporary directories
+node_modules/
+.yarn/cache/
+.yarn/install-state.gz
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Vendor
+vendor/
+
+################################################################################
+# Certifications & Keys
+################################################################################
+
+# SSL Certificates
+*.crt
+*.cer
+*.key
+*.pem
+certs/
+certificates/
+
+# GPG
+*.gpg
+*.asc
+
+################################################################################
+# Docker & Container
+################################################################################
+
+docker-compose.override.yml
+.dockerignore
+docker-volumes/
+
+################################################################################
+# Development Tools
+################################################################################
+
+# Git
+.git/
+.gitignore
+
+# GitHub
+.github/workflows/
+.github/actions/
+
+# CI/CD
+.circleci/
+
+# Package managers
+poetry.lock
+Pipfile.lock
+yarn.lock
+pnpm.lock.yaml
+
+################################################################################
+# Misc Project Specific
+################################################################################
+
+# Project specific
+.DS_Store
+.vscode/
+*.swp
+*.swo
+*~
+.env.*
+!.env.example
+!.env.sample
+
+# Zizo_NetVerse Backend
 /src/backend/core/serviceAccountKey.json
-/src/backend/venv/
 /src/backend/.env
+/src/backend/venv/
+/src/backend/.venv/
+/src/backend/env/
+src/backend/__pycache__/
+src/backend/**/__pycache__/
+src/backend/**/*.pyc
+src/backend/test_results/
+src/backend/htmlcov/
 
-.env
-.venv
-node_modules
-.github
-src/venv/
+# Zizo_NetVerse Frontend
+/src/.next/
+/src/out/
+src/**/.next/
+src/**/.vercel/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Deployment
+*.sock
+.env.production
+
+# Node
+package-lock.json
+yarn.lock
+pnpm.lock.yaml
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Misc
+.cache
+.parcel-cache
+.cache/
+.vuepress/dist
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+.vscode-test
+.yarn/cache
+.yarn/state.yml
+
+# Python
+*.pyo
+*.pyd
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Backend test files
+src/backend/test_*.py
+test_results.xml

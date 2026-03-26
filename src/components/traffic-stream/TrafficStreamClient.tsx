@@ -106,10 +106,8 @@ export default function TrafficStreamClient() {
   const loadInitialLogs = async () => {
      if (!user) return;
      try {
-       const token = await user.getIdToken();
-       // Assuming fetchNetworkLogs will be updated to accept a token
-       const logs = await fetchNetworkLogs(); 
-       const formattedLogs = logs.map((log: any) => ({
+       const response = await fetchNetworkLogs(); 
+       const formattedLogs = response.logs.map((log: any) => ({
           ...log,
           protocol: log.protocol || 'unknown',
           category: 'Network' as LogCategory,

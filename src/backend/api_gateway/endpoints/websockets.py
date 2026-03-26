@@ -1,14 +1,22 @@
 # src/backend/api_gateway/endpoints/websockets.py
 
+from datetime import datetime
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from typing import List, Dict, Any
 import json
 import asyncio
 import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 from services.message_queue import message_queue
 from api_gateway.endpoints.auth import get_current_user
 
-logger = logging.getLogger(__name__)
+if not logger.hasHandlers():
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 router = APIRouter()
 
 class ConnectionManager:
@@ -24,6 +32,7 @@ class ConnectionManager:
         self.active_connections.append(websocket)
         self.authenticated_connections[websocket] = user_data
         logger.info(f"WebSocket connected for user: {user_data.get('email', 'unknown')}")
+        logger.debug(f"WebSocket connection details: {getattr(websocket, 'client', None)}")
     
     def disconnect(self, websocket: WebSocket):
         """Remove a WebSocket connection."""
@@ -32,6 +41,7 @@ class ConnectionManager:
         if websocket in self.authenticated_connections:
             del self.authenticated_connections[websocket]
         logger.info("WebSocket disconnected")
+        logger.debug(f"WebSocket disconnected: {getattr(websocket, 'client', None)}")
     
     async def send_personal_message(self, message: str, websocket: WebSocket):
         """Send a message to a specific WebSocket."""
@@ -39,6 +49,7 @@ class ConnectionManager:
             await websocket.send_text(message)
         except Exception as e:
             logger.error(f"Error sending WebSocket message: {e}")
+            logger.debug(f"Message data: {message}")
             self.disconnect(websocket)
     
     async def broadcast(self, message: str):
@@ -49,8 +60,8 @@ class ConnectionManager:
                 await connection.send_text(message)
             except Exception as e:
                 logger.error(f"Error broadcasting to WebSocket: {e}")
+                logger.debug(f"Broadcast data: {message}")
                 disconnected.append(connection)
-        
         # Clean up disconnected clients
         for connection in disconnected:
             self.disconnect(connection)
@@ -82,10 +93,22 @@ async def authenticate_websocket(websocket: WebSocket, token: str = None) -> dic
         # Use the same authentication logic as the REST endpoints
         from firebase_admin import auth
         decoded_token = auth.verify_id_token(token, check_revoked=True)
+
+        # Check token expiration (add 5 min buffer)
+        if decoded_token.get('exp', 0) < (datetime.now().timestamp() + 300):
+            await websocket.close(code=4002, reason="Token expiring soon")
+            raise HTTPException(status_code=4002, detail="Token expiring soon")
+
         return decoded_token
+    except auth.ExpiredIdTokenError:
+        await websocket.close(code=4003, reason="Token expired")
+        raise HTTPException(status_code=4003, detail="Token expired")
+    except auth.RevokedIdTokenError:
+        await websocket.close(code=4004, reason="Token revoked")
+        raise HTTPException(status_code=4004, detail="Token revoked")
     except Exception as e:
-        await websocket.close(code=4003, reason="Invalid authentication token")
-        raise HTTPException(status_code=4003, detail="Invalid authentication token")
+        await websocket.close(code=4005, reason=f"Authentication error: {str(e)}")
+        raise HTTPException(status_code=4005, detail=f"Authentication error: {str(e)}")
 
 
 @router.websocket("/ws/logs/network")
@@ -156,6 +179,7 @@ async def websocket_network_logs(websocket: WebSocket, token: str = None):
             
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
+        logger.debug(f"WebSocket error details: {e}")
         if websocket in manager.active_connections:
             manager.disconnect(websocket)
 
@@ -189,8 +213,10 @@ async def websocket_system_status(websocket: WebSocket, token: str = None):
             
     except WebSocketDisconnect:
         logger.info("System status WebSocket disconnected")
+        logger.debug(f"System status WebSocket disconnected: {websocket.client}")
         manager.disconnect(websocket)
     except Exception as e:
         logger.error(f"System status WebSocket error: {e}")
+        logger.debug(f"System status WebSocket error details: {e}")
         if websocket in manager.active_connections:
             manager.disconnect(websocket)

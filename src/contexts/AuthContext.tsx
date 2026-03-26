@@ -13,7 +13,7 @@ interface AuthContextType {
   loading: boolean;
   role: UserRole | null;
   // Note: signup is removed from here as it's no longer a direct frontend action
-  login: typeof signInWithEmailAndPassword;
+  login: (email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
   forceRefreshUserToken: () => Promise<string | null>;
 }
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     loading,
     role,
-    login: (email, password) => signInWithEmailAndPassword(auth, email, password),
+    login: (email: string, password: string) => signInWithEmailAndPassword(auth, email, password),
     logout: async () => {
         await signOut(auth);
         setUser(null);

@@ -12,3 +12,17 @@ asyncio-mqtt
 redis
 python-dateutil
 mitmproxy
+python-nmap
+pytest
+pytest-asyncio
+httpx# OpenTelemetry dependencies
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-exporter-jaeger
+opentelemetry-exporter-prometheus
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-httpx
+opentelemetry-instrumentation-requests
+opentelemetry-instrumentation-redis
+opentelemetry-instrumentation-sqlalchemy
+structlog

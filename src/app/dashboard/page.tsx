@@ -112,15 +112,15 @@ export default function DashboardPage() {
     // Fetch initial summary data
     const getInitialData = async () => {
       try {
-        const summary = await fetchLogsSummary();
+        const token = await user.getIdToken();
+        const summary = await fetchLogsSummary({ start: '', end: '' });
         setPacketsIntercepted(summary.total_packets || 0);
         // Placeholder for threats and devices, as summary doesn't provide them yet
-        setActiveThreats(Object.keys(summary.threat_indicators || {}).length);
-        setConnectedDevices((Object.keys(summary.top_source_ips || {}).length + Object.keys(summary.top_dest_ips || {}).length) || 10);
-        
+        setActiveThreats(summary.top_ips?.length || 0);
+        setConnectedDevices(summary.top_ips?.length || 10);
         // Update radar chart with protocol data
         setRadarChartData(prevData => {
-            const protocolCounts = summary.protocols || {};
+            const protocolCounts = summary.protocol_breakdown || {};
             return prevData.map(item => {
                 const protocolKey = item.subject.toUpperCase();
                 return {
@@ -129,7 +129,6 @@ export default function DashboardPage() {
                 }
             })
         });
-
       } catch (error) {
         toast({ title: "Error", description: "Could not fetch dashboard summary data from backend.", variant: "destructive" });
       }
@@ -137,52 +136,90 @@ export default function DashboardPage() {
 
     getInitialData();
 
-    // Setup WebSocket for live updates
+    // Setup WebSocket for live updates with token refresh handling
     let ws: WebSocket | null = null;
-    const connectWebSocket = async () => {
-        const token = await user.getIdToken();
-        ws = new WebSocket(`${process.env.NEXT_PUBLIC_API_BASE_WS || 'ws://localhost:8000/api/v1'}/ws/system/status?token=${token}`);
-
-        ws.onopen = () => {
-          toast({ title: "Dashboard Stream Connected", description: "Receiving live system vitals."});
-        };
-
-        ws.onmessage = (event) => {
-          const message = JSON.parse(event.data);
-          if (message.type === 'system_status') {
-            const { capture_stats } = message.data;
-            setPacketsIntercepted(capture_stats.packet_count);
-
-            // Simulate vitals from capture stats for now
-            setVitalsChartData(prevData => {
-              const newTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-              const newDataPoint = {
-                name: newTime,
-                cpu: (capture_stats.packet_count % 50) + 20, // mock cpu
-                memory: (capture_stats.packet_count % 40) + 40, // mock memory
-                network: (capture_stats.packet_count % 30) + 10, // mock network
-              };
-              return [...prevData.slice(1), newDataPoint];
-            });
-          }
-        };
-
-        ws.onclose = () => {
-          console.log("Dashboard WebSocket disconnected. Reconnecting...");
-          setTimeout(connectWebSocket, 5000);
-        };
-        
-        ws.onerror = (err) => {
-            console.error("Dashboard WebSocket error:", err);
-            toast({ title: "Dashboard Stream Error", description: "Connection to live vitals failed.", variant: "destructive"});
-            ws?.close();
+    let wsReconnectTimer: NodeJS.Timeout | null = null;
+    
+    const connectWebSocket = async (freshToken?: string) => {
+        if (ws) {
+            ws.close();
+            ws = null;
         }
-    }
+        
+        try {
+            // If not provided, get a fresh token (force refresh every hour)
+            const token = freshToken || await user.getIdToken(Math.floor(Date.now() / 3600000) !== Math.floor(Number(user.metadata.lastSignInTime) / 3600000));
+            ws = new WebSocket(`${process.env.NEXT_PUBLIC_API_BASE_WS || 'ws://localhost:8000/api/v1'}/ws/system/status?token=${token}`);
+
+            ws.onopen = () => {
+                if (wsReconnectTimer) {
+                    clearTimeout(wsReconnectTimer);
+                    wsReconnectTimer = null;
+                }
+                toast({ title: "Dashboard Stream Connected", description: "Receiving live system vitals."});
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (message.type === 'system_status') {
+                    const { capture_stats } = message.data;
+                    setPacketsIntercepted(capture_stats.packet_count);
+
+                    // Update vitals data
+                    setVitalsChartData(prevData => {
+                        const newTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        const newDataPoint = {
+                            name: newTime,
+                            cpu: (capture_stats.packet_count % 50) + 20, // mock cpu
+                            memory: (capture_stats.packet_count % 40) + 40, // mock memory
+                            network: (capture_stats.packet_count % 30) + 10, // mock network
+                        };
+                        return [...prevData.slice(1), newDataPoint];
+                    });
+                }
+            };
+
+            ws.onclose = async () => {
+                console.log("Dashboard WebSocket disconnected. Attempting to refresh token...");
+                try {
+                    // Try to get a fresh token before reconnecting
+                    const newToken = await user.getIdToken(true);
+                    if (!wsReconnectTimer) {
+                        wsReconnectTimer = setTimeout(() => connectWebSocket(newToken), 5000);
+                    }
+                } catch (error) {
+                    console.error("Failed to refresh token:", error);
+                    // Still try to reconnect, but with the old token
+                    if (!wsReconnectTimer) {
+                        wsReconnectTimer = setTimeout(() => connectWebSocket(), 5000);
+                    }
+                }
+            };
+            
+            ws.onerror = (err) => {
+                console.error("Dashboard WebSocket error:", err);
+                toast({ 
+                    title: "Dashboard Stream Error", 
+                    description: "Connection to live vitals failed. Retrying with fresh credentials.", 
+                    variant: "destructive"
+                });
+                ws?.close();
+            };
+        } catch (error) {
+            console.error("WebSocket connection error:", error);
+            if (!wsReconnectTimer) {
+                wsReconnectTimer = setTimeout(() => connectWebSocket(), 5000);
+            }
+        }
+    };
     
     connectWebSocket();
     
     return () => {
-      ws?.close();
+        if (wsReconnectTimer) {
+            clearTimeout(wsReconnectTimer);
+        }
+        ws?.close();
     };
 
   }, [user, toast]);

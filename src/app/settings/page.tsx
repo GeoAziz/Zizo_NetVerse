@@ -33,8 +33,8 @@ function UserManagementTab() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const userList = await listUsers();
-      setUsers(userList);
+      const response = await listUsers();
+      setUsers(response.users);
     } catch (error) {
       console.error("Failed to fetch users:", error);
       toast({ title: "Error", description: "Could not fetch user list.", variant: "destructive" });

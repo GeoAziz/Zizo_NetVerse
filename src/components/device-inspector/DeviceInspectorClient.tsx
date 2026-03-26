@@ -17,7 +17,7 @@ interface DeviceDetails {
   hostname: string;
   enrichment?: any;
   alerts?: any[];
-  status: 'online' | 'offline' | 'isolated';
+  status: 'online' | 'offline' | 'isolated' | 'unknown';
 }
 
 export default function DeviceInspectorClient({ deviceId }: { deviceId: string }) {
@@ -30,7 +30,8 @@ export default function DeviceInspectorClient({ deviceId }: { deviceId: string }
     const fetchDeviceData = async () => {
       setLoading(true);
       try {
-        const dev = await getDevice(deviceId);
+        const response = await getDevice(deviceId);
+        const dev = response.device as DeviceDetails;
         if (dev && dev.ip) {
           try {
             const enrich = await enrichIp(dev.ip);

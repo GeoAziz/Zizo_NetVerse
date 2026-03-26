@@ -3,11 +3,18 @@
 import asyncio
 import json
 import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 from typing import Dict, Any, Callable, Optional
 import redis.asyncio as redis
 from core.config import settings
 
-logger = logging.getLogger(__name__)
+if not logger.hasHandlers():
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
 class MessageQueueService:
     """
@@ -24,8 +31,10 @@ class MessageQueueService:
             self.redis_client = redis.from_url(settings.REDIS_URL)
             await self.redis_client.ping()
             logger.info("Redis connection established successfully")
+            logger.debug(f"Redis connection params: {settings.REDIS_URL}")
         except Exception as e:
             logger.error(f"Failed to connect to Redis: {e}")
+            logger.debug(f"Redis connection error details: {e}")
             self.redis_client = None
     
     async def publish_packet_data(self, channel: str, packet_data: Dict[str, Any]) -> bool:
@@ -41,6 +50,7 @@ class MessageQueueService:
         """
         if not self.redis_client:
             logger.error("Redis client not initialized")
+            logger.debug("Redis client is None or not connected.")
             return False
             
         try:
@@ -49,6 +59,7 @@ class MessageQueueService:
             return True
         except Exception as e:
             logger.error(f"Failed to publish message: {e}")
+            logger.debug(f"Publish message error details: {e}, message: {message}")
             return False
     
     async def subscribe_to_channel(self, channel: str, callback: Callable[[Dict[str, Any]], None]):
@@ -61,6 +72,7 @@ class MessageQueueService:
         """
         if not self.redis_client:
             logger.error("Redis client not initialized")
+            logger.debug("Redis client is None or not connected.")
             return
             
         try:
@@ -68,6 +80,7 @@ class MessageQueueService:
             await pubsub.subscribe(channel)
             
             logger.info(f"Subscribed to channel: {channel}")
+            logger.debug(f"Subscription details: {channel}")
             
             async for message in pubsub.listen():
                 if message['type'] == 'message':
@@ -76,11 +89,14 @@ class MessageQueueService:
                         await callback(data)  # Make callback async
                     except json.JSONDecodeError as e:
                         logger.error(f"Failed to decode message: {e}")
+                        logger.debug(f"Decode error details: {e}, message: {message}")
                     except Exception as e:
                         logger.error(f"Error processing message: {e}")
+                        logger.debug(f"Processing error details: {e}, message: {message}")
                         
         except Exception as e:
             logger.error(f"Failed to subscribe to channel {channel}: {e}")
+            logger.debug(f"Subscription error details: {e}, channel: {channel}")
         finally:
             if 'pubsub' in locals():
                 await pubsub.close()

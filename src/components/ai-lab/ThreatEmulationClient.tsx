@@ -144,7 +144,7 @@ export default function ThreatEmulationClient() {
       try {
         const packetData = { ...currentScenario.mockPacket, target: targetScope };
         const aiResult = await analyzePacket(packetData);
-        setEmulationLog(prev => [...prev, `AI Analysis Complete: ${aiResult.analysis?.suspicionReason || 'Normal traffic detected.'}`]);
+        setEmulationLog(prev => [...prev, `AI Analysis Complete: ${aiResult.threat_analysis?.suspicionReason || 'Normal traffic detected.'}`]);
 
         // Final completion message
         setTimeout(() => {

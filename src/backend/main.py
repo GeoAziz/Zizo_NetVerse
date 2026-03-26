@@ -6,7 +6,9 @@ from api_gateway.endpoints import (
     auth,
     logs,
     websockets,
+    visualization_websockets,
     control,
+    threat_actions,
     proxy,
     ai_analysis,
     threat_feeds,
@@ -15,18 +17,32 @@ from api_gateway.endpoints import (
     devices,
     control_device,
     users,
+    device_manager,
+    health,
+    traceroute,
 )
 from core.config import settings
+from core.observability import create_observability_manager
 from services import firebase_admin
 from services.message_queue import message_queue
 from services.network_capture import network_capture
+from services.firewall_manager import firewall_manager
 from starlette.middleware.cors import CORSMiddleware
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import asyncio
 import logging
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
 logger = logging.getLogger(__name__)
+
+# Initialize OpenTelemetry observability
+observability_manager = create_observability_manager(
+    service_name="zizo-netverse-backend",
+    enable_jaeger=os.getenv("ENABLE_JAEGER", "false").lower() == "true",
+    enable_prometheus=os.getenv("ENABLE_PROMETHEUS", "false").lower() == "true"
+)
 
 # Initialize Firebase Admin SDK - this is crucial to do before anything else
 firebase_admin.initialize_firebase_admin()
@@ -41,6 +57,10 @@ async def lifespan(app: FastAPI):
     try:
         await message_queue.initialize()
         logger.info("✅ Message queue initialized")
+        
+        # Initialize firewall manager
+        await firewall_manager.initialize()
+        logger.info("✅ Firewall manager initialized")
         
         if settings.CAPTURE_ENABLED:
             logger.info("🎯 Starting packet capture service...")
@@ -62,6 +82,10 @@ async def lifespan(app: FastAPI):
         if network_capture.is_capturing:
             network_capture.stop_capture()
         await message_queue.close()
+        
+        # Shutdown observability manager
+        observability_manager.shutdown()
+        
         logger.info("✅ Clean shutdown completed")
     except Exception as e:
         logger.error(f"❌ Error during shutdown: {e}")
@@ -74,6 +98,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Instrument FastAPI with OpenTelemetry
+FastAPIInstrumentor.instrument_app(app)
 
 # Set all CORS enabled origins
 if settings.cors_origins_list:
@@ -104,16 +131,21 @@ async def health_check():
         "services": {
             "firebase": "connected" if firebase_admin._apps else "disconnected",
             "capture": "ready" if network_capture else "unavailable",
-            "message_queue": "ready" if message_queue.redis_client else "unavailable"
+            "message_queue": "ready" if message_queue.redis_client else "unavailable",
+            "firewall": firewall_manager.get_backend_info()
         }
     }
 
 
 # Include routers from the api_gateway
+app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["Authentication"])
 app.include_router(logs.router, prefix=settings.API_V1_STR, tags=["Network Logs"])
 app.include_router(websockets.router, prefix=settings.API_V1_STR, tags=["WebSocket Streaming"])
+app.include_router(visualization_websockets.router, prefix=settings.API_V1_STR, tags=["Visualization WebSocket"])
 app.include_router(control.router, prefix=settings.API_V1_STR, tags=["Control"])
+app.include_router(traceroute.router, prefix=settings.API_V1_STR, tags=["Traceroute"])
+app.include_router(threat_actions.router, prefix=settings.API_V1_STR, tags=["Threat Actions"])
 app.include_router(proxy.router, prefix=settings.API_V1_STR, tags=["Proxy"])
 app.include_router(ai_analysis.router, prefix=settings.API_V1_STR, tags=["AI Analysis"])
 app.include_router(threat_feeds.router, prefix=settings.API_V1_STR, tags=["Threat Feeds"])
@@ -122,6 +154,7 @@ app.include_router(alerts.router, prefix=settings.API_V1_STR, tags=["Alerts"])
 app.include_router(devices.router, prefix=settings.API_V1_STR, tags=["Devices"])
 app.include_router(control_device.router, prefix=settings.API_V1_STR, tags=["Device Control"])
 app.include_router(users.router, prefix=settings.API_V1_STR, tags=["User Management"])
+app.include_router(device_manager.router, prefix=settings.API_V1_STR, tags=["Device Management"])
 
 
 if __name__ == "__main__":

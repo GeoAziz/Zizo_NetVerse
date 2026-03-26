@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Bug, Fish, ShieldOff, DatabaseZap, TerminalSquare, AlertOctagon, type LucideIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { getThreatFeeds } from '@/lib/enrichmentApi';
+import { getThreatFeeds, type ThreatFeedItem } from '@/lib/enrichmentApi';
 
 const threatTypeToIconMap: Record<Threat['type'], LucideIcon | undefined> = {
   Malware: Bug,
@@ -67,7 +67,7 @@ export default function ThreatIntelligenceClient() {
         ...doc.data()
       })) as Threat[];
       // Fetch backend threat feeds
-      let backendFeeds: string[] = [];
+      let backendFeeds: ThreatFeedItem[] = [];
       try {
         const feeds = await getThreatFeeds();
         backendFeeds = feeds.feeds || [];
@@ -77,7 +77,7 @@ export default function ThreatIntelligenceClient() {
         threatsList.push({
           id: 'backend-feeds',
           type: 'Custom',
-          description: `Custom backend threat feeds: ${backendFeeds.join(', ')}`,
+          description: `Custom backend threat feeds: ${backendFeeds.map(f => f.name).join(', ')}`,
           severity: 'info',
           status: 'Active',
           icon: undefined,

@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
 
-from api_gateway.endpoints.auth import get_current_user
+from api_gateway.endpoints.auth import get_current_user, AuthUser
 from services.database import influxdb_service
 from services.network_capture import network_capture
 
@@ -15,7 +15,7 @@ router = APIRouter()
 
 @router.get("/logs/network", response_model=List[Dict[str, Any]])
 async def get_network_logs(
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthUser = Depends(get_current_user),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of logs to return"),
     start_time: Optional[str] = Query(None, description="Start time in ISO format (e.g., 2023-10-27T10:00:00Z)"),
     end_time: Optional[str] = Query(None, description="End time in ISO format"),
@@ -61,7 +61,7 @@ async def get_network_logs(
         # Re-apply limit after filtering
         logs = logs[:limit]
         
-        logger.info(f"Retrieved {len(logs)} network logs for user {current_user.get('email')}")
+        logger.info(f"Retrieved {len(logs)} network logs for user {current_user.email}")
         return logs
         
     except Exception as e:
@@ -71,7 +71,7 @@ async def get_network_logs(
 
 @router.get("/logs/summary")
 async def get_logs_summary(
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthUser = Depends(get_current_user),
     hours: int = Query(24, ge=1, le=168, description="Number of hours to summarize")
 ):
     """
@@ -142,7 +142,7 @@ async def get_logs_summary(
 
 
 @router.get("/capture/status")
-async def get_capture_status(current_user: dict = Depends(get_current_user)):
+async def get_capture_status(current_user: AuthUser = Depends(get_current_user)):
     """
     Get the current status of the packet capture service.
     """
@@ -156,7 +156,7 @@ async def get_capture_status(current_user: dict = Depends(get_current_user)):
 
 @router.post("/capture/start")
 async def start_capture(
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthUser = Depends(get_current_user),
     interface: Optional[str] = Query(None, description="Network interface to capture on")
 ):
     """
@@ -183,7 +183,7 @@ async def start_capture(
 
 
 @router.post("/capture/stop")
-async def stop_capture(current_user: dict = Depends(get_current_user)):
+async def stop_capture(current_user: AuthUser = Depends(get_current_user)):
     """
     Stop packet capture service.
     """

@@ -124,7 +124,7 @@ const generateIncidentReportFlow = ai.defineFlow(
     });
     return {
       ...output!,
-      visualizationDataUri: media.url,
+      visualizationDataUri: media?.url || '',
     };
   }
 );

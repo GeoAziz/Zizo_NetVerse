@@ -4,10 +4,12 @@ const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
   typescript: {
-    ignoreBuildErrors: true,
+    tsconfigPath: './tsconfig.json',
+    // Strict mode enabled - all TS errors must be resolved
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    dirs: ['src'],
+    // ESLint runs on build - warnings must be addressed
   },
   images: {
     remotePatterns: [

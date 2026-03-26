@@ -4,7 +4,8 @@ from scapy.all import sniff, Packet, IP, TCP, UDP, ICMP, get_if_list
 import asyncio
 import json
 import logging
-from datetime import datetime
+import os
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from services.enrichment import DataEnrichmentService
 from core.config import settings
@@ -37,7 +38,7 @@ class NetworkCaptureService:
             # Basic packet info
             packet_data = {
                 "id": f"pkt-{self.packet_count}",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "length": len(packet),
                 "summary": packet.summary(),
                 "protocol": "unknown",
@@ -158,7 +159,9 @@ class NetworkCaptureService:
             
             # Write directly to database for persistence
             # In production, this would be handled by a separate consumer service
-            influxdb_service.write_network_log(packet_data)
+            success = influxdb_service.write_network_log(packet_data)
+            if not success:
+                logger.debug(f"Failed to write packet to InfluxDB: {packet_data.get('summary', 'unknown')}")
             
         except Exception as e:
             logger.error(f"Error sending packet to pipeline: {e}")
@@ -170,6 +173,10 @@ class NetworkCaptureService:
         Args:
             interface: Network interface to capture on (defaults to config setting)
         """
+        if os.geteuid() != 0:
+            logger.error("Permission denied: Please run with root/administrator privileges")
+            logger.error("Try: sudo python -m uvicorn main:app --host 0.0.0.0 --port 8000")
+            return
         if self.is_capturing:
             logger.warning("Packet capture is already running")
             return
@@ -187,6 +194,7 @@ class NetworkCaptureService:
                 
             self.is_capturing = True
             self.packet_count = 0
+            event_loop = asyncio.get_running_loop()
             
             # Initialize message queue
             await message_queue.initialize()
@@ -198,8 +206,18 @@ class NetworkCaptureService:
                     
                 packet_data = self.process_packet(packet)
                 if packet_data:
-                    # Create a task to handle async pipeline processing
-                    asyncio.create_task(self.send_to_pipeline(packet_data))
+                    future = asyncio.run_coroutine_threadsafe(
+                        self.send_to_pipeline(packet_data),
+                        event_loop,
+                    )
+
+                    def _on_done(done_future):
+                        try:
+                            done_future.result()
+                        except Exception as callback_error:
+                            logger.error(f"Error in packet pipeline task: {callback_error}")
+
+                    future.add_done_callback(_on_done)
             
             # Start packet sniffing in a separate thread to avoid blocking
             await asyncio.to_thread(
