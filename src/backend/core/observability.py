@@ -105,8 +105,8 @@ class ObservabilityManager:
             
             # ==================== Instrument Libraries ====================
             
-            # FastAPI instrumentation
-            FastAPIInstrumentor.instrument_app = lambda app: FastAPIInstrumentor.instrument(app)
+            # Note: FastAPI instrumentation is applied after app creation in main.py
+            # to avoid version compatibility issues
             
             # HTTP client instrumentation
             HTTPXClientInstrumentor().instrument()
@@ -324,3 +324,20 @@ def log_with_context(level: int, message: str, context: dict = None, **kwargs):
         
     except Exception as e:
         logging.log(level, f"{message} (logging with context failed: {e})")
+
+
+def instrument_fastapi_app(app):
+    """
+    Instrument a FastAPI app with OpenTelemetry.
+    
+    This is called separately from initialize() to avoid version compatibility issues.
+    
+    Args:
+        app: FastAPI application instance
+    """
+    try:
+        FastAPIInstrumentor().instrument_app(app)
+        logger.info("FastAPI app instrumented with OpenTelemetry")
+    except Exception as e:
+        logger.warning(f"Failed to instrument FastAPI app: {e}")
+

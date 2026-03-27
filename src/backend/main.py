@@ -100,7 +100,8 @@ app = FastAPI(
 )
 
 # Instrument FastAPI with OpenTelemetry
-FastAPIInstrumentor.instrument_app(app)
+from core.observability import instrument_fastapi_app
+instrument_fastapi_app(app)
 
 # Set all CORS enabled origins
 if settings.cors_origins_list:
